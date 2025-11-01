@@ -29,6 +29,21 @@ namespace API.Services.Otp
         {
             try
             {
+                // Check if pending user exists (required for FK constraint)
+                var pendingUser = await _dbContext.pending_users
+                    .FirstOrDefaultAsync(p => p.email == email);
+
+                if (pendingUser == null)
+                {
+                    return Result.Failure<string>(OtpMessages.PendingUserNotFound);
+                }
+
+                // Check if pending registration expired
+                if (pendingUser.expires_at < DateTime.Now)
+                {
+                    return Result.Failure<string>(OtpMessages.RegistrationExpired);
+                }
+
                 // Delete any existing OTP for this email
                 var existingOtps = await _dbContext.otp_codes
                     .Where(o => o.email == email)

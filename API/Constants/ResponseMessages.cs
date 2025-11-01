@@ -12,6 +12,18 @@ namespace API.Constants
         public const string FailedToMapUserData = "Failed to map user data";
         public const string FailedToCreateUser = "Failed to create user. Please try again later.";
 
+        // Password Reset
+        public const string PasswordResetOtpSent = "If an account exists with this email, a password reset OTP has been sent.";
+        public const string PasswordResetSuccessful = "Password has been reset successfully. You can now login with your new password.";
+        public const string UserNotFound = "User account not found.";
+        public const string UserNotConfirmed = "User account is not confirmed. Please verify your email first.";
+        public const string FailedToResetPassword = "Failed to reset password. Please try again later.";
+
+        // Login
+        public const string LoginSuccessful = "Login successful.";
+        public const string InvalidCredentials = "Invalid email or password.";
+        public const string AccountNotConfirmed = "Your account is not confirmed. Please check your email to verify your account.";
+
         // Validation Messages
         public const string EmailRequired = "Email is required";
         public const string EmailInvalid = "Email address is not valid";

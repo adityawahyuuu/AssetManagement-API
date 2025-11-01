@@ -17,6 +17,11 @@ CREATE INDEX idx_pending_users_expires_at ON kosan.pending_users(expires_at);
 
 -- Table: otp_codes
 -- Purpose: Store OTP verification codes with expiration and attempt tracking
+-- Note: OTP codes are used for both:
+--   1. User registration (email in pending_users table)
+--   2. Password reset (email in user_logins table)
+-- Therefore, NO foreign key constraint is enforced on email column.
+-- Email validation is handled at the application level.
 CREATE TABLE IF NOT EXISTS kosan.otp_codes (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL,
@@ -25,10 +30,8 @@ CREATE TABLE IF NOT EXISTS kosan.otp_codes (
     expires_at TIMESTAMP NOT NULL, -- OTP expires after X minutes (e.g., 10 min)
     is_verified BOOLEAN DEFAULT FALSE,
     attempts INT DEFAULT 0, -- Track failed verification attempts
-    max_attempts INT DEFAULT 5, -- Maximum allowed attempts
-    CONSTRAINT fk_otp_email FOREIGN KEY (email)
-        REFERENCES kosan.pending_users(email)
-        ON DELETE CASCADE
+    max_attempts INT DEFAULT 5 -- Maximum allowed attempts
+    -- NOTE: No FK constraint - allows OTP for both pending_users and user_logins
 );
 
 CREATE INDEX idx_otp_codes_email ON kosan.otp_codes(email);

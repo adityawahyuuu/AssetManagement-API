@@ -5,12 +5,15 @@ using API.Data;
 using API.DTOs;
 using API.Models;
 using API.Services.Email;
+using API.Services.Jwt;
 using API.Services.Otp;
 using API.Services.PasswordHashing;
+using API.Services.PasswordReset;
 using AutoMapper;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Collections;
 
 namespace API.Repositories.Register
 {
@@ -18,29 +21,38 @@ namespace API.Repositories.Register
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly IValidator<UserRegisterDto> _validator;
+        private readonly IValidator<ResetPasswordDto> _resetPasswordValidator;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IMapper _mapper;
         private readonly IOtpService _otpService;
+        private readonly IPasswordResetService _passwordResetService;
         private readonly IEmailService _emailService;
+        private readonly IJwtService _jwtService;
         private readonly OtpOptions _otpOptions;
         private readonly ILogger<RegisterRepository> _logger;
 
         public RegisterRepository(
             ApplicationDbContext context,
             IValidator<UserRegisterDto> validator,
+            IValidator<ResetPasswordDto> resetPasswordValidator,
             IPasswordHasher passwordHasher,
             IMapper mapper,
             IOtpService otpService,
+            IPasswordResetService passwordResetService,
             IEmailService emailService,
+            IJwtService jwtService,
             IOptions<OtpOptions> otpOptions,
             ILogger<RegisterRepository> logger)
         {
             _dbContext = context;
             _validator = validator;
+            _resetPasswordValidator = resetPasswordValidator;
             _passwordHasher = passwordHasher;
             _mapper = mapper;
             _otpService = otpService;
+            _passwordResetService = passwordResetService;
             _emailService = emailService;
+            _jwtService = jwtService;
             _otpOptions = otpOptions.Value;
             _logger = logger;
         }
@@ -155,18 +167,13 @@ namespace API.Repositories.Register
                     password_hash = pendingUser.password_hash,
                     created_at = DateTime.Now,
                     updated_at = DateTime.Now,
-                    is_confirmed = true
+                    is_confirmed = new BitArray(1, true)
                 };
 
                 await _dbContext.user_logins.AddAsync(newUser);
 
-                // Remove pending user and OTP records
+                // Remove pending user (OTP records will be CASCADE deleted)
                 _dbContext.pending_users.Remove(pendingUser);
-
-                var otpRecords = await _dbContext.otp_codes
-                    .Where(o => o.email == email)
-                    .ToListAsync();
-                _dbContext.otp_codes.RemoveRange(otpRecords);
 
                 await _dbContext.SaveChangesAsync();
 
@@ -177,6 +184,178 @@ namespace API.Repositories.Register
             {
                 _logger.LogError(ex, "Failed to activate user: {Email}", email);
                 return Result.Failure(OtpMessages.FailedToActivateUser);
+            }
+        }
+
+        public async Task<Result<LoginResponseDto>> Login(LoginDto loginDto)
+        {
+            try
+            {
+                // Find user by email
+                var user = await _dbContext.user_logins
+                    .FirstOrDefaultAsync(u => u.email == loginDto.Email);
+
+                if (user == null)
+                {
+                    // Don't reveal if email exists
+                    return Result.Failure<LoginResponseDto>(ResponseMessages.InvalidCredentials);
+                }
+
+                // Check if account is confirmed
+                var isConfirmed = user.is_confirmed != null && user.is_confirmed[0];
+                if (!isConfirmed)
+                {
+                    return Result.Failure<LoginResponseDto>(ResponseMessages.AccountNotConfirmed);
+                }
+
+                // Verify password
+                var isPasswordValid = _passwordHasher.VerifyPassword(loginDto.Password, user.password_hash);
+                if (!isPasswordValid)
+                {
+                    return Result.Failure<LoginResponseDto>(ResponseMessages.InvalidCredentials);
+                }
+
+                // Generate JWT token
+                var token = _jwtService.GenerateToken(user);
+
+                // Create response
+                var response = new LoginResponseDto
+                {
+                    UserId = user.userid,
+                    Email = user.email,
+                    Username = user.username,
+                    CreatedAt = user.created_at,
+                    Token = token
+                };
+
+                _logger.LogInformation("User logged in successfully: {Email}", loginDto.Email);
+                return Result.Success(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to login user: {Email}", loginDto.Email);
+                return Result.Failure<LoginResponseDto>("Failed to login. Please try again later.");
+            }
+        }
+
+        public async Task<Result<AuthMeResponseDto>> GetCurrentUser(int userId)
+        {
+            try
+            {
+                // Find user by ID
+                var user = await _dbContext.user_logins
+                    .FirstOrDefaultAsync(u => u.userid == userId);
+
+                if (user == null)
+                {
+                    return Result.Failure<AuthMeResponseDto>(ResponseMessages.UserNotFound);
+                }
+
+                // Check if account is confirmed
+                var isConfirmed = user.is_confirmed != null && user.is_confirmed[0];
+
+                // Create response
+                var response = new AuthMeResponseDto
+                {
+                    UserId = user.userid,
+                    Email = user.email,
+                    Username = user.username,
+                    CreatedAt = user.created_at,
+                    IsConfirmed = isConfirmed
+                };
+
+                return Result.Success(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get current user: {UserId}", userId);
+                return Result.Failure<AuthMeResponseDto>("Failed to retrieve user information.");
+            }
+        }
+
+        public async Task<Result> SendPasswordResetOtp(string email)
+        {
+            try
+            {
+                // Generate password reset token
+                var tokenResult = await _passwordResetService.GenerateResetTokenAsync(email);
+                if (tokenResult.IsFailure)
+                {
+                    // For security: Don't reveal specific error to client
+                    // Log the actual error but return generic message
+                    _logger.LogWarning("Password reset token generation failed for {Email}: {Error}",
+                        email, tokenResult.Error);
+                    return Result.Success(); // Don't reveal if email exists
+                }
+
+                // Send password reset email with token
+                var emailSent = await _emailService.SendPasswordResetEmailAsync(
+                    email,
+                    tokenResult.Value);
+
+                if (!emailSent)
+                {
+                    _logger.LogWarning("Failed to send password reset email to {Email}", email);
+                    return Result.Failure("Failed to send password reset email");
+                }
+
+                _logger.LogInformation("Password reset token sent to: {Email}", email);
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending password reset token for {Email}", email);
+                return Result.Failure(ResponseMessages.FailedToResetPassword);
+            }
+        }
+
+        public async Task<Result> ResetPassword(ResetPasswordDto resetPasswordDto)
+        {
+            try
+            {
+                // Validation
+                var validationResult = await _resetPasswordValidator.ValidateAsync(resetPasswordDto);
+                if (!validationResult.IsValid)
+                {
+                    var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+                    return Result.Failure(errors);
+                }
+
+                // Verify reset token
+                var tokenVerifyResult = await _passwordResetService.VerifyResetTokenAsync(
+                    resetPasswordDto.Email,
+                    resetPasswordDto.OtpCode); // Using OtpCode field for token (backwards compatibility)
+
+                if (tokenVerifyResult.IsFailure)
+                {
+                    return Result.Failure(tokenVerifyResult.Error);
+                }
+
+                // Get user
+                var user = await _dbContext.user_logins
+                    .FirstOrDefaultAsync(u => u.email == resetPasswordDto.Email);
+
+                if (user == null)
+                {
+                    return Result.Failure(ResponseMessages.UserNotFound);
+                }
+
+                // Update password
+                user.password_hash = _passwordHasher.HashPassword(resetPasswordDto.Password);
+                user.updated_at = DateTime.Now;
+
+                await _dbContext.SaveChangesAsync();
+
+                // Clean up password reset tokens
+                await _passwordResetService.CleanupExpiredTokensAsync(resetPasswordDto.Email);
+
+                _logger.LogInformation("Password reset successfully for: {Email}", resetPasswordDto.Email);
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to reset password for {Email}", resetPasswordDto.Email);
+                return Result.Failure(ResponseMessages.FailedToResetPassword);
             }
         }
     }

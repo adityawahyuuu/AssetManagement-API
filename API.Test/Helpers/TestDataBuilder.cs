@@ -1,5 +1,6 @@
 using API.DTOs;
 using API.Models;
+using System.Collections;
 
 namespace API.Test.Helpers
 {
@@ -51,7 +52,7 @@ namespace API.Test.Helpers
                 password_hash = "hashedpassword",
                 created_at = DateTime.Now,
                 updated_at = DateTime.Now,
-                is_confirmed = true
+                is_confirmed = new BitArray(1, true)
             };
         }
     }

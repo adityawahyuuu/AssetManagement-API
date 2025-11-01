@@ -2,11 +2,13 @@
 using API.DTOs;
 using API.Repositories.Register;
 using API.Services.Otp;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace API.Controllers
 {
-    [Route("/user")]
+    [Route("api/user")]
     [ApiController]
     public class UserController : BaseController
     {
@@ -76,6 +78,57 @@ namespace API.Controllers
             });
         }
 
+        [Route("login")]
+        [HttpPost]
+        public async Task<IActionResult> Login([FromForm] LoginDto loginDto)
+        {
+            var result = await _registerRepository.Login(loginDto);
+
+            if (result.IsFailure)
+            {
+                return HandleResult(result);
+            }
+
+            return Ok(new
+            {
+                type = ResponseMessages.Success,
+                message = ResponseMessages.LoginSuccessful,
+                data = result.Value
+            });
+        }
+
+        [Route("auth/me")]
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            // Get user ID from JWT claims
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new
+                {
+                    type = ResponseMessages.Failed,
+                    message = "Invalid token"
+                });
+            }
+
+            var result = await _registerRepository.GetCurrentUser(userId);
+
+            if (result.IsFailure)
+            {
+                return HandleResult(result);
+            }
+
+            return Ok(new
+            {
+                type = ResponseMessages.Success,
+                message = "User information retrieved successfully",
+                data = result.Value
+            });
+        }
+
         [Route("resend-otp")]
         [HttpPost]
         public async Task<IActionResult> ResendOtp([FromForm] ResendOtpDto resendOtpDto)
@@ -94,6 +147,50 @@ namespace API.Controllers
                 data = new
                 {
                     email = resendOtpDto.Email
+                }
+            });
+        }
+
+        [Route("forgot-password")]
+        [HttpPost]
+        public async Task<IActionResult> ForgotPassword([FromForm] ForgotPasswordDto forgotPasswordDto)
+        {
+            var result = await _registerRepository.SendPasswordResetOtp(forgotPasswordDto.Email);
+
+            if (result.IsFailure)
+            {
+                return HandleResult(result);
+            }
+
+            return Ok(new
+            {
+                type = ResponseMessages.Success,
+                message = ResponseMessages.PasswordResetOtpSent,
+                data = new
+                {
+                    email = forgotPasswordDto.Email
+                }
+            });
+        }
+
+        [Route("reset-password")]
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword([FromForm] ResetPasswordDto resetPasswordDto)
+        {
+            var result = await _registerRepository.ResetPassword(resetPasswordDto);
+
+            if (result.IsFailure)
+            {
+                return HandleResult(result);
+            }
+
+            return Ok(new
+            {
+                type = ResponseMessages.Success,
+                message = ResponseMessages.PasswordResetSuccessful,
+                data = new
+                {
+                    email = resetPasswordDto.Email
                 }
             });
         }

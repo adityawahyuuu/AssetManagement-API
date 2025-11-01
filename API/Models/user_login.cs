@@ -16,5 +16,5 @@ public partial class user_login
 
     public DateTime? updated_at { get; set; }
 
-    public Boolean? is_confirmed { get; set; }
+    public BitArray? is_confirmed { get; set; }
 }
