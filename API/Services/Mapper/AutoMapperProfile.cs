@@ -11,6 +11,10 @@ namespace API.Services.Mapper
             CreateMap<UserRegisterDto, user_login>()
                 .ForMember(dest => dest.email, opt => opt.MapFrom(src => src.Email))
                 .ForMember(dest => dest.username, opt => opt.MapFrom(src => src.Username));
+
+            // Room mappings
+            CreateMap<Room, RoomResponseDto>();
+            CreateMap<AddRoomDto, Room>();
         }
     }
 }

@@ -26,6 +26,8 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<pending_users> pending_users { get; set; }
     public virtual DbSet<otp_codes> otp_codes { get; set; }
     public virtual DbSet<password_reset_tokens> password_reset_tokens { get; set; }
+    public virtual DbSet<Room> Rooms { get; set; }
+    public virtual DbSet<Asset> Assets { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -129,6 +131,76 @@ public partial class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.email)
                 .HasPrincipalKey(u => u.email)
                 .HasConstraintName("fk_password_reset_email")
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Rooms Configuration
+        modelBuilder.Entity<Room>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("rooms_pkey");
+
+            entity.ToTable("rooms", _schemaName);
+
+            entity.HasIndex(e => e.UserId, "idx_rooms_user_id");
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt }, "idx_rooms_user_created");
+
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.LengthM).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.WidthM).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.DoorPosition).HasMaxLength(20);
+            entity.Property(e => e.WindowPosition).HasMaxLength(20);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            // Foreign key relationship to user_login
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .HasConstraintName("fk_rooms_user")
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Assets Configuration
+        modelBuilder.Entity<Asset>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("assets_pkey");
+
+            entity.ToTable("assets", _schemaName);
+
+            entity.HasIndex(e => e.RoomId, "idx_assets_room_id");
+            entity.HasIndex(e => e.UserId, "idx_assets_user_id");
+            entity.HasIndex(e => new { e.RoomId, e.Category }, "idx_assets_room_category");
+            entity.HasIndex(e => new { e.RoomId, e.CreatedAt }, "idx_assets_room_created");
+
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.Category).HasMaxLength(50);
+            entity.Property(e => e.FunctionZone).HasMaxLength(50);
+            entity.Property(e => e.Condition).HasMaxLength(50);
+            entity.Property(e => e.PurchasePrice).HasColumnType("decimal(12,2)");
+            entity.Property(e => e.PurchaseDate).HasColumnType("date");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            // Foreign key relationship to rooms
+            entity.HasOne(e => e.Room)
+                .WithMany(r => r.Assets)
+                .HasForeignKey(e => e.RoomId)
+                .HasConstraintName("fk_assets_room")
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Foreign key relationship to user_login
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .HasConstraintName("fk_assets_user")
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

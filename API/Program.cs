@@ -2,6 +2,7 @@ using API.Configuration;
 using API.Data;
 using API.Middlewares;
 using API.Repositories.Register;
+using API.Repositories.Room;
 using API.Services.Email;
 using API.Services.Jwt;
 using API.Services.Otp;
@@ -46,6 +47,7 @@ namespace API
             });
 
             builder.Services.AddScoped<IRegisterRepository, RegisterRepository>();
+            builder.Services.AddScoped<IRoomRepository, RoomRepository>();
             builder.Services.AddAutoMapper(typeof(Program).Assembly);
             builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
             builder.Services.AddScoped<IOtpService, OtpService>();
