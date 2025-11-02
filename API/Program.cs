@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Security.Claims;
 
 namespace API
 {
@@ -46,31 +47,6 @@ namespace API
                 options.UseNpgsql(builder.Configuration.GetConnectionString("AssetManagementConnection"));
             });
 
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("AllowAll", builder =>
-                {
-                    builder
-                        .AllowAnyOrigin()      // Allow any origin (0.0.0.0)
-                        .AllowAnyMethod()      // Allow GET, POST, PUT, DELETE, etc.
-                        .AllowAnyHeader();     // Allow any headers
-                });
-
-                // OR: More restrictive (recommended for production)
-                options.AddPolicy("AllowLocal", builder =>
-                {
-                    builder
-                        .WithOrigins(
-                            "http://localhost:3000",
-                            "http://localhost:5000",
-                            "http://127.0.0.1:3000"
-                        )
-                        .AllowAnyMethod()
-                        .AllowAnyHeader()
-                        .AllowCredentials();  // Allow cookies/auth
-                });
-            });
-
             builder.Services.AddScoped<IRegisterRepository, RegisterRepository>();
             builder.Services.AddScoped<IRoomRepository, RoomRepository>();
             builder.Services.AddAutoMapper(typeof(Program).Assembly);
@@ -79,6 +55,19 @@ namespace API
             builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
             builder.Services.AddScoped<IEmailService, EmailService>();
             builder.Services.AddScoped<IJwtService, JwtService>();
+
+            // Configure CORS to allow frontend
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials();
+                });
+            });
+
             builder.Services.AddControllers();
 
             // Configure JWT Authentication
@@ -101,6 +90,54 @@ namespace API
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 };
+
+                // Add detailed logging for debugging JWT issues
+                options.Events = new JwtBearerEvents
+                {
+                    OnAuthenticationFailed = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                        logger.LogError(context.Exception, "JWT Authentication failed: {Message}", context.Exception.Message);
+
+                        if (context.Exception is SecurityTokenExpiredException)
+                        {
+                            logger.LogWarning("Token expired at {ExpiredAt}", ((SecurityTokenExpiredException)context.Exception).Expires);
+                        }
+
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                        var userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                        logger.LogInformation("JWT Token validated successfully for user {UserId}", userId);
+                        return Task.CompletedTask;
+                    },
+                    OnChallenge = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                        logger.LogWarning("JWT Challenge: Error={Error}, ErrorDescription={ErrorDescription}",
+                            context.Error, context.ErrorDescription);
+                        return Task.CompletedTask;
+                    },
+                    OnMessageReceived = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                        var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+
+                        if (!string.IsNullOrEmpty(authHeader))
+                        {
+                            logger.LogInformation("Authorization header received: {HeaderPreview}",
+                                authHeader.Substring(0, Math.Min(20, authHeader.Length)) + "...");
+                        }
+                        else
+                        {
+                            logger.LogWarning("No Authorization header found in request");
+                        }
+
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
             builder.Services.AddAuthorization();
@@ -110,8 +147,6 @@ namespace API
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
-
-            app.UseCors("AllowLocal");  // or "AllowAll"
 
             app.UseMiddleware<GlobalExceptionHandler>();
 
@@ -123,6 +158,9 @@ namespace API
             }
 
             app.UseHttpsRedirection();
+
+            // CORS must be before Authentication and Authorization
+            app.UseCors("AllowFrontend");
 
             app.UseAuthentication();
             app.UseAuthorization();
