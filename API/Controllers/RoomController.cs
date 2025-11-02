@@ -1,15 +1,17 @@
-using API.Constants;
+﻿using API.Constants;
 using API.DTOs;
 using API.Repositories.Room;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace API.Controllers
 {
-    [Route("api/room")]
+    [Route("api/rooms")]
     [ApiController]
     [Authorize]
+    [EnableCors("AllowLocal")]  // ← Add this
     public class RoomController : BaseController
     {
         private readonly IRoomRepository _roomRepository;

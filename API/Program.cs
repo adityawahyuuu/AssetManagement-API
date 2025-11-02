@@ -46,6 +46,31 @@ namespace API
                 options.UseNpgsql(builder.Configuration.GetConnectionString("AssetManagementConnection"));
             });
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", builder =>
+                {
+                    builder
+                        .AllowAnyOrigin()      // Allow any origin (0.0.0.0)
+                        .AllowAnyMethod()      // Allow GET, POST, PUT, DELETE, etc.
+                        .AllowAnyHeader();     // Allow any headers
+                });
+
+                // OR: More restrictive (recommended for production)
+                options.AddPolicy("AllowLocal", builder =>
+                {
+                    builder
+                        .WithOrigins(
+                            "http://localhost:3000",
+                            "http://localhost:5000",
+                            "http://127.0.0.1:3000"
+                        )
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials();  // Allow cookies/auth
+                });
+            });
+
             builder.Services.AddScoped<IRegisterRepository, RegisterRepository>();
             builder.Services.AddScoped<IRoomRepository, RoomRepository>();
             builder.Services.AddAutoMapper(typeof(Program).Assembly);
@@ -85,6 +110,8 @@ namespace API
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
+
+            app.UseCors("AllowLocal");  // or "AllowAll"
 
             app.UseMiddleware<GlobalExceptionHandler>();
 
