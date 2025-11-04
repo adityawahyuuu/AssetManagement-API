@@ -28,6 +28,7 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<password_reset_tokens> password_reset_tokens { get; set; }
     public virtual DbSet<Room> Rooms { get; set; }
     public virtual DbSet<Asset> Assets { get; set; }
+    public virtual DbSet<AssetCategory> AssetCategories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -202,6 +203,22 @@ public partial class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.UserId)
                 .HasConstraintName("fk_assets_user")
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Asset Categories Configuration
+        modelBuilder.Entity<AssetCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("asset_categories_pkey");
+
+            entity.ToTable("asset_categories", _schemaName);
+
+            entity.Property(e => e.Name).HasMaxLength(50);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -194,5 +194,19 @@ namespace API.Controllers
                 }
             });
         }
+
+        [Route("logout")]
+        [HttpPost]
+        [Authorize]
+        public IActionResult Logout()
+        {
+            // In JWT authentication, logout is typically handled client-side
+            // by removing the token. This endpoint confirms the logout action.
+            return Ok(new
+            {
+                type = ResponseMessages.Success,
+                message = "Logout successful"
+            });
+        }
     }
 }

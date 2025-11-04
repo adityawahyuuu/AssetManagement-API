@@ -1,22 +1,22 @@
 using API.Constants;
 using API.DTOs;
-using API.Repositories.Room;
+using API.Repositories.Asset;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace API.Controllers
 {
-    [Route("api/rooms")]
+    [Route("api/assets")]
     [ApiController]
     [Authorize]
-    public class RoomController : BaseController
+    public class AssetController : BaseController
     {
-        private readonly IRoomRepository _roomRepository;
+        private readonly IAssetRepository _assetRepository;
 
-        public RoomController(IRoomRepository roomRepository)
+        public AssetController(IAssetRepository assetRepository)
         {
-            _roomRepository = roomRepository;
+            _assetRepository = assetRepository;
         }
 
         private int GetUserIdFromToken()
@@ -29,8 +29,8 @@ namespace API.Controllers
             return userId;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AddRoom([FromBody] AddRoomDto addRoomDto)
+        [HttpGet]
+        public async Task<IActionResult> GetAllAssetsPaginated([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             var userId = GetUserIdFromToken();
             if (userId == 0)
@@ -42,7 +42,7 @@ namespace API.Controllers
                 });
             }
 
-            var result = await _roomRepository.AddRoom(userId, addRoomDto);
+            var result = await _assetRepository.GetAllAssetsPaginated(userId, page, pageSize);
 
             if (result.IsFailure)
             {
@@ -52,13 +52,47 @@ namespace API.Controllers
             return Ok(new
             {
                 type = ResponseMessages.Success,
-                message = "Room added successfully",
+                message = "Assets retrieved successfully",
+                data = result.Value.Data,
+                page = result.Value.Page,
+                pageSize = result.Value.PageSize,
+                totalCount = result.Value.TotalCount,
+                totalPages = result.Value.TotalPages,
+                hasPreviousPage = result.Value.HasPreviousPage,
+                hasNextPage = result.Value.HasNextPage
+            });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddAsset([FromBody] AddAssetDto addAssetDto)
+        {
+            var userId = GetUserIdFromToken();
+            if (userId == 0)
+            {
+                return Unauthorized(new
+                {
+                    type = ResponseMessages.Failed,
+                    message = "Invalid token"
+                });
+            }
+
+            var result = await _assetRepository.AddAsset(userId, addAssetDto);
+
+            if (result.IsFailure)
+            {
+                return HandleResult(result);
+            }
+
+            return Ok(new
+            {
+                type = ResponseMessages.Success,
+                message = "Asset added successfully",
                 data = result.Value
             });
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAllUserRooms()
+        [HttpGet("room/{roomId}")]
+        public async Task<IActionResult> GetAssetsByRoomId(int roomId)
         {
             var userId = GetUserIdFromToken();
             if (userId == 0)
@@ -70,7 +104,7 @@ namespace API.Controllers
                 });
             }
 
-            var result = await _roomRepository.GetAllUserRooms(userId);
+            var result = await _assetRepository.GetAssetsByRoomId(roomId, userId);
 
             if (result.IsFailure)
             {
@@ -80,13 +114,13 @@ namespace API.Controllers
             return Ok(new
             {
                 type = ResponseMessages.Success,
-                message = "Rooms retrieved successfully",
+                message = "Assets retrieved successfully",
                 data = result.Value
             });
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetRoomById(int id)
+        public async Task<IActionResult> GetAssetById(int id)
         {
             var userId = GetUserIdFromToken();
             if (userId == 0)
@@ -98,7 +132,7 @@ namespace API.Controllers
                 });
             }
 
-            var result = await _roomRepository.GetRoomById(id, userId);
+            var result = await _assetRepository.GetAssetById(id, userId);
 
             if (result.IsFailure)
             {
@@ -108,13 +142,13 @@ namespace API.Controllers
             return Ok(new
             {
                 type = ResponseMessages.Success,
-                message = "Room retrieved successfully",
+                message = "Asset retrieved successfully",
                 data = result.Value
             });
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateRoom(int id, [FromBody] UpdateRoomDto updateRoomDto)
+        public async Task<IActionResult> UpdateAsset(int id, [FromBody] UpdateAssetDto updateAssetDto)
         {
             var userId = GetUserIdFromToken();
             if (userId == 0)
@@ -126,7 +160,7 @@ namespace API.Controllers
                 });
             }
 
-            var result = await _roomRepository.UpdateRoom(id, userId, updateRoomDto);
+            var result = await _assetRepository.UpdateAsset(id, userId, updateAssetDto);
 
             if (result.IsFailure)
             {
@@ -136,13 +170,13 @@ namespace API.Controllers
             return Ok(new
             {
                 type = ResponseMessages.Success,
-                message = "Room updated successfully",
+                message = "Asset updated successfully",
                 data = result.Value
             });
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteRoom(int id)
+        public async Task<IActionResult> DeleteAsset(int id)
         {
             var userId = GetUserIdFromToken();
             if (userId == 0)
@@ -154,7 +188,7 @@ namespace API.Controllers
                 });
             }
 
-            var result = await _roomRepository.DeleteRoom(id, userId);
+            var result = await _assetRepository.DeleteAsset(id, userId);
 
             if (result.IsFailure)
             {
@@ -164,7 +198,7 @@ namespace API.Controllers
             return Ok(new
             {
                 type = ResponseMessages.Success,
-                message = "Room and all its assets deleted successfully",
+                message = "Asset deleted successfully",
                 data = new { }
             });
         }

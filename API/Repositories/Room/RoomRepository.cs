@@ -5,6 +5,7 @@ using API.DTOs;
 using API.Models;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace API.Repositories.Room
 {
@@ -51,8 +52,8 @@ namespace API.Repositories.Room
                     PowerOutletPositions = addRoomDto.PowerOutletPositions,
                     PhotoUrl = addRoomDto.PhotoUrl,
                     Notes = addRoomDto.Notes,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
 
                 _dbContext.Rooms.Add(room);
@@ -61,10 +62,28 @@ namespace API.Repositories.Room
                 var roomResponse = _mapper.Map<RoomResponseDto>(room);
                 return Result.Success(roomResponse);
             }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgresEx)
+            {
+                _logger.LogError(ex, "Database constraint violation when adding room for user {UserId}", userId);
+
+                var errorMessages = new List<string>();
+
+                // Handle specific constraint violations
+                if (postgresEx.ConstraintName?.StartsWith("fk_") == true)
+                {
+                    errorMessages.Add("Referenced resource not found");
+                }
+                else
+                {
+                    errorMessages.Add($"Database constraint violation: {postgresEx.MessageText}");
+                }
+
+                return Result.Failure<RoomResponseDto>(errorMessages);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding room for user {UserId}", userId);
-                return Result.Failure<RoomResponseDto>("Failed to add room");
+                return Result.Failure<RoomResponseDto>("Failed to add room. Please check your input and try again.");
             }
         }
 
@@ -159,10 +178,28 @@ namespace API.Repositories.Room
                 var roomResponse = _mapper.Map<RoomResponseDto>(room);
                 return Result.Success(roomResponse);
             }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgresEx)
+            {
+                _logger.LogError(ex, "Database constraint violation when updating room {RoomId} for user {UserId}", roomId, userId);
+
+                var errorMessages = new List<string>();
+
+                // Handle specific constraint violations
+                if (postgresEx.ConstraintName?.StartsWith("fk_") == true)
+                {
+                    errorMessages.Add("Referenced resource not found");
+                }
+                else
+                {
+                    errorMessages.Add($"Database constraint violation: {postgresEx.MessageText}");
+                }
+
+                return Result.Failure<RoomResponseDto>(errorMessages);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating room {RoomId} for user {UserId}", roomId, userId);
-                return Result.Failure<RoomResponseDto>("Failed to update room");
+                return Result.Failure<RoomResponseDto>("Failed to update room. Please check your input and try again.");
             }
         }
 
@@ -184,10 +221,28 @@ namespace API.Repositories.Room
 
                 return Result.Success();
             }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgresEx)
+            {
+                _logger.LogError(ex, "Database constraint violation when deleting room {RoomId} for user {UserId}", roomId, userId);
+
+                var errorMessages = new List<string>();
+
+                // Handle specific constraint violations
+                if (postgresEx.ConstraintName?.StartsWith("fk_") == true)
+                {
+                    errorMessages.Add("Cannot delete room because it is referenced by other resources");
+                }
+                else
+                {
+                    errorMessages.Add($"Database constraint violation: {postgresEx.MessageText}");
+                }
+
+                return Result.Failure(errorMessages);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting room {RoomId} for user {UserId}", roomId, userId);
-                return Result.Failure("Failed to delete room");
+                return Result.Failure("Failed to delete room. Please try again.");
             }
         }
     }

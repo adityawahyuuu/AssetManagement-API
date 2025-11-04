@@ -15,6 +15,13 @@ namespace API.Services.Mapper
             // Room mappings
             CreateMap<Room, RoomResponseDto>();
             CreateMap<AddRoomDto, Room>();
+
+            // Asset mappings
+            CreateMap<Asset, AssetResponseDto>();
+            CreateMap<AddAssetDto, Asset>();
+
+            // Asset Category mappings
+            CreateMap<AssetCategory, AssetCategoryResponseDto>();
         }
     }
 }

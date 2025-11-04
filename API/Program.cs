@@ -3,6 +3,8 @@ using API.Data;
 using API.Middlewares;
 using API.Repositories.Register;
 using API.Repositories.Room;
+using API.Repositories.Asset;
+using API.Repositories.AssetCategory;
 using API.Services.Email;
 using API.Services.Jwt;
 using API.Services.Otp;
@@ -49,6 +51,8 @@ namespace API
 
             builder.Services.AddScoped<IRegisterRepository, RegisterRepository>();
             builder.Services.AddScoped<IRoomRepository, RoomRepository>();
+            builder.Services.AddScoped<IAssetRepository, AssetRepository>();
+            builder.Services.AddScoped<IAssetCategoryRepository, AssetCategoryRepository>();
             builder.Services.AddAutoMapper(typeof(Program).Assembly);
             builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
             builder.Services.AddScoped<IOtpService, OtpService>();
@@ -129,6 +133,13 @@ namespace API
                         {
                             logger.LogInformation("Authorization header received: {HeaderPreview}",
                                 authHeader.Substring(0, Math.Min(20, authHeader.Length)) + "...");
+
+                            // Explicitly extract token from Bearer scheme
+                            if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                            {
+                                context.Token = authHeader.Substring("Bearer ".Length).Trim();
+                                logger.LogInformation("Token extracted, length: {TokenLength}", context.Token.Length);
+                            }
                         }
                         else
                         {

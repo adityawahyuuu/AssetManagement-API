@@ -1,0 +1,30 @@
+namespace API.DTOs
+{
+    public class AssetResponseDto
+    {
+        public int Id { get; set; }
+        public int RoomId { get; set; }
+        public int UserId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Category { get; set; }
+        public string? PhotoUrl { get; set; }
+        public int LengthCm { get; set; }
+        public int WidthCm { get; set; }
+        public int HeightCm { get; set; }
+        public int ClearanceFrontCm { get; set; }
+        public int ClearanceSidesCm { get; set; }
+        public int ClearanceBackCm { get; set; }
+        public string? FunctionZone { get; set; }
+        public bool MustBeNearWall { get; set; }
+        public bool MustBeNearWindow { get; set; }
+        public bool MustBeNearOutlet { get; set; }
+        public bool CanRotate { get; set; }
+        public int[]? CannotAdjacentTo { get; set; }
+        public DateTime? PurchaseDate { get; set; }
+        public decimal? PurchasePrice { get; set; }
+        public string? Condition { get; set; }
+        public string? Notes { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+}
