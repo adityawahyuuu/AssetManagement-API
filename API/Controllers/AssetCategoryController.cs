@@ -2,11 +2,13 @@ using API.Constants;
 using API.DTOs;
 using API.Repositories.AssetCategory;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
     [Route("api/asset-categories")]
     [ApiController]
+    [Authorize]
     public class AssetCategoryController : BaseController
     {
         private readonly IAssetCategoryRepository _assetCategoryRepository;
