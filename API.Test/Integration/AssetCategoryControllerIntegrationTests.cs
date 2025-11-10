@@ -1,9 +1,14 @@
 using API.Constants;
 using API.Data;
+using API.DTOs;
 using API.Models;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections;
 using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace API.Test.Integration
@@ -19,26 +24,65 @@ namespace API.Test.Integration
             _client = factory.CreateClient();
         }
 
+        private async Task<string> GetAuthTokenAsync()
+        {
+            var email = $"categorytest{Guid.NewGuid()}@example.com";
+            var username = $"catuser{Guid.NewGuid().ToString().Substring(0, 8)}";
+            var password = "TestPassword123!";
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var passwordHasher = scope.ServiceProvider.GetRequiredService<API.Services.PasswordHashing.IPasswordHasher>();
+
+                var user = new user_login
+                {
+                    email = email,
+                    username = username,
+                    password_hash = passwordHasher.HashPassword(password),
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
+                };
+
+                await dbContext.user_logins.AddAsync(user);
+                await dbContext.SaveChangesAsync();
+            }
+
+            var loginDto = new LoginDto
+            {
+                Email = email,
+                Password = password
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/auth/login", loginDto);
+            var content = await response.Content.ReadAsStringAsync();
+            var jsonDoc = JsonDocument.Parse(content);
+            return jsonDoc.RootElement.GetProperty("data").GetProperty("token").GetString()!;
+        }
+
         [Fact]
         public async Task GetAllAssetCategories_ShouldReturnAllCategories()
         {
             // Arrange
+            var token = await GetAuthTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
             // Seed some categories
             using (var scope = _factory.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
                 // Check if categories already exist, if not add some
-                if (!await dbContext.asset_categories.AnyAsync())
+                if (!await dbContext.AssetCategories.AnyAsync())
                 {
                     var categories = new List<AssetCategory>
                     {
-                        new AssetCategory { name = "Furniture", created_at = DateTime.Now },
-                        new AssetCategory { name = "Electronics", created_at = DateTime.Now },
-                        new AssetCategory { name = "Appliances", created_at = DateTime.Now }
+                        new AssetCategory { Name = "Furniture", CreatedAt = DateTime.Now },
+                        new AssetCategory { Name = "Electronics", CreatedAt = DateTime.Now },
+                        new AssetCategory { Name = "Appliances", CreatedAt = DateTime.Now }
                     };
 
-                    await dbContext.asset_categories.AddRangeAsync(categories);
+                    await dbContext.AssetCategories.AddRangeAsync(categories);
                     await dbContext.SaveChangesAsync();
                 }
             }
@@ -62,12 +106,15 @@ namespace API.Test.Integration
         public async Task GetAllAssetCategories_WithEmptyDatabase_ShouldReturnEmptyArray()
         {
             // Arrange
+            var token = await GetAuthTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
             // Clear all categories
             using (var scope = _factory.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var categories = await dbContext.asset_categories.ToListAsync();
-                dbContext.asset_categories.RemoveRange(categories);
+                var categories = await dbContext.AssetCategories.ToListAsync();
+                dbContext.AssetCategories.RemoveRange(categories);
                 await dbContext.SaveChangesAsync();
             }
 
@@ -86,20 +133,23 @@ namespace API.Test.Integration
         }
 
         [Fact]
-        public async Task GetAllAssetCategories_ShouldNotRequireAuthentication()
+        public async Task GetAllAssetCategories_WithoutAuth_ShouldReturnUnauthorized()
         {
             // Act
-            // This endpoint should be public, so no authentication header
+            // This endpoint requires authentication, so no authentication header should return 401
             var response = await _client.GetAsync("/api/asset-categories");
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         }
 
         [Fact]
         public async Task GetAllAssetCategories_ShouldReturnCorrectCategoryStructure()
         {
             // Arrange
+            var token = await GetAuthTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
             var categoryName = $"TestCategory{Guid.NewGuid().ToString().Substring(0, 8)}";
 
             using (var scope = _factory.Services.CreateScope())
@@ -108,11 +158,11 @@ namespace API.Test.Integration
 
                 var category = new AssetCategory
                 {
-                    name = categoryName,
-                    created_at = DateTime.Now
+                    Name = categoryName,
+                    CreatedAt = DateTime.Now
                 };
 
-                await dbContext.asset_categories.AddAsync(category);
+                await dbContext.AssetCategories.AddAsync(category);
                 await dbContext.SaveChangesAsync();
             }
 

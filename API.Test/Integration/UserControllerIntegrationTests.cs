@@ -37,7 +37,7 @@ namespace API.Test.Integration
             };
 
             // Act
-            var response = await _client.PostAsync("/user/register", formData);
+            var response = await _client.PostAsync("/api/user/register", formData);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -62,7 +62,7 @@ namespace API.Test.Integration
             };
 
             // Act
-            var response = await _client.PostAsync("/user/register", formData);
+            var response = await _client.PostAsync("/api/user/register", formData);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -85,7 +85,7 @@ namespace API.Test.Integration
             };
 
             // Act
-            var response = await _client.PostAsync("/user/register", formData);
+            var response = await _client.PostAsync("/api/user/register", formData);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -124,7 +124,7 @@ namespace API.Test.Integration
             };
 
             // Act
-            var response = await _client.PostAsync("/user/verify", formData);
+            var response = await _client.PostAsync("/api/user/verify", formData);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -177,7 +177,7 @@ namespace API.Test.Integration
             };
 
             // Act
-            var response = await _client.PostAsync("/user/verify", formData);
+            var response = await _client.PostAsync("/api/user/verify", formData);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -210,7 +210,7 @@ namespace API.Test.Integration
             };
 
             // Act
-            var response = await _client.PostAsync("/user/resend-otp", formData);
+            var response = await _client.PostAsync("/api/user/resend-otp", formData);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -232,7 +232,7 @@ namespace API.Test.Integration
             };
 
             // Act
-            var response = await _client.PostAsync("/user/resend-otp", formData);
+            var response = await _client.PostAsync("/api/user/resend-otp", formData);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);

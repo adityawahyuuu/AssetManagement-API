@@ -6,6 +6,7 @@ using API.Test.Helpers;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -42,7 +43,8 @@ namespace API.Test.Integration
                     email = email,
                     username = username,
                     password_hash = passwordHasher.HashPassword(password),
-                    created_at = DateTime.Now
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
                 };
 
                 await dbContext.user_logins.AddAsync(user);
@@ -51,15 +53,16 @@ namespace API.Test.Integration
 
                 var room = new Room
                 {
-                    user_id = userId,
-                    room_number = $"AssetRoom{Guid.NewGuid().ToString().Substring(0, 8)}",
-                    description = "Asset test room",
-                    created_at = DateTime.Now
+                    UserId = userId,
+                    Name = $"AssetRoom{Guid.NewGuid().ToString().Substring(0, 8)}",
+                    LengthM = 5.0m,
+                    WidthM = 4.0m,
+                    CreatedAt = DateTime.Now
                 };
 
                 await dbContext.Rooms.AddAsync(room);
                 await dbContext.SaveChangesAsync();
-                roomId = room.id;
+                roomId = room.Id;
 
                 // Check if category exists, if not create one
                 var category = await dbContext.AssetCategories.FirstOrDefaultAsync();
@@ -73,12 +76,12 @@ namespace API.Test.Integration
                     await dbContext.AssetCategories.AddAsync(category);
                     await dbContext.SaveChangesAsync();
                 }
-                categoryId = category.id;
+                categoryId = category.Id;
             }
 
             var loginDto = new LoginDto
             {
-                Email = username,
+                Email = email,
                 Password = password
             };
 
@@ -131,8 +134,11 @@ namespace API.Test.Integration
             var addAssetDto = new AddAssetDto
             {
                 RoomId = roomId,
-                AssetCategoryId = categoryId,
-                AssetName = "Test Asset",
+                Category = "Test Category",
+                Name = "Test Asset",
+                LengthCm = 100,
+                WidthCm = 50,
+                HeightCm = 75,
                 PurchaseDate = DateTime.Now,
                 PurchasePrice = 1000.00m,
                 Condition = "Good",
@@ -158,8 +164,11 @@ namespace API.Test.Integration
             var addAssetDto = new AddAssetDto
             {
                 RoomId = 1,
-                AssetCategoryId = 1,
-                AssetName = "Test Asset",
+                Category = "Test Category",
+                Name = "Test Asset",
+                LengthCm = 100,
+                WidthCm = 50,
+                HeightCm = 75,
                 PurchaseDate = DateTime.Now,
                 PurchasePrice = 1000.00m,
                 Condition = "Good"
@@ -183,8 +192,11 @@ namespace API.Test.Integration
             var addAssetDto = new AddAssetDto
             {
                 RoomId = roomId,
-                AssetCategoryId = categoryId,
-                AssetName = "Get Test Asset",
+                Category = "Test Category",
+                Name = "Get Test Asset",
+                LengthCm = 120,
+                WidthCm = 60,
+                HeightCm = 80,
                 PurchaseDate = DateTime.Now,
                 PurchasePrice = 1500.00m,
                 Condition = "Excellent"
@@ -218,8 +230,11 @@ namespace API.Test.Integration
             var addAssetDto = new AddAssetDto
             {
                 RoomId = roomId,
-                AssetCategoryId = categoryId,
-                AssetName = "Room Asset",
+                Category = "Test Category",
+                Name = "Room Asset",
+                LengthCm = 150,
+                WidthCm = 80,
+                HeightCm = 90,
                 PurchaseDate = DateTime.Now,
                 PurchasePrice = 2000.00m,
                 Condition = "Good"
@@ -250,8 +265,11 @@ namespace API.Test.Integration
             var addAssetDto = new AddAssetDto
             {
                 RoomId = roomId,
-                AssetCategoryId = categoryId,
-                AssetName = "Update Test Asset",
+                Category = "Test Category",
+                Name = "Update Test Asset",
+                LengthCm = 100,
+                WidthCm = 50,
+                HeightCm = 75,
                 PurchaseDate = DateTime.Now,
                 PurchasePrice = 1000.00m,
                 Condition = "Good"
@@ -264,7 +282,7 @@ namespace API.Test.Integration
 
             var updateAssetDto = new UpdateAssetDto
             {
-                AssetName = "Updated Asset Name",
+                Name = "Updated Asset Name",
                 PurchaseDate = DateTime.Now.AddDays(-10),
                 PurchasePrice = 1200.00m,
                 Condition = "Excellent",
@@ -289,7 +307,7 @@ namespace API.Test.Integration
             // Arrange
             var updateAssetDto = new UpdateAssetDto
             {
-                AssetName = "Test Asset",
+                Name = "Test Asset",
                 PurchaseDate = DateTime.Now,
                 PurchasePrice = 1000.00m,
                 Condition = "Good"
@@ -313,8 +331,11 @@ namespace API.Test.Integration
             var addAssetDto = new AddAssetDto
             {
                 RoomId = roomId,
-                AssetCategoryId = categoryId,
-                AssetName = "Delete Test Asset",
+                Category = "Test Category",
+                Name = "Delete Test Asset",
+                LengthCm = 100,
+                WidthCm = 50,
+                HeightCm = 75,
                 PurchaseDate = DateTime.Now,
                 PurchasePrice = 1000.00m,
                 Condition = "Good"

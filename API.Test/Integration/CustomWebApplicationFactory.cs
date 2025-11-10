@@ -1,10 +1,12 @@
 using API.Configuration;
 using API.Data;
+using API.Services.Email;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Moq;
 
 namespace API.Test.Integration
 {
@@ -12,6 +14,16 @@ namespace API.Test.Integration
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            // Set the environment to Test to load appsettings.Test.json
+            builder.UseEnvironment("Test");
+
+            // Ensure the configuration loads appsettings.Test.json
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                // Clear existing configuration sources and rebuild with Test environment
+                context.HostingEnvironment.EnvironmentName = "Test";
+            });
+
             builder.ConfigureServices(services =>
             {
                 // Remove the existing DbContext registration
@@ -22,6 +34,32 @@ namespace API.Test.Integration
                 {
                     services.Remove(descriptor);
                 }
+
+                // Register DatabaseOptions for ApplicationDbContext
+                services.Configure<DatabaseOptions>(options =>
+                {
+                    options.SchemaName = "kosan";
+                });
+
+                // Mock the EmailService for testing (avoid real SMTP calls)
+                var emailServiceDescriptor = services.SingleOrDefault(
+                    d => d.ServiceType == typeof(IEmailService));
+
+                if (emailServiceDescriptor != null)
+                {
+                    services.Remove(emailServiceDescriptor);
+                }
+
+                var mockEmailService = new Mock<IEmailService>();
+                mockEmailService
+                    .Setup(es => es.SendOtpEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                    .ReturnsAsync(true);
+
+                mockEmailService
+                    .Setup(es => es.SendPasswordResetEmailAsync(It.IsAny<string>(), It.IsAny<string>()))
+                    .ReturnsAsync(true);
+
+                services.AddScoped<IEmailService>(_ => mockEmailService.Object);
 
                 // Add InMemory database for testing
                 services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>

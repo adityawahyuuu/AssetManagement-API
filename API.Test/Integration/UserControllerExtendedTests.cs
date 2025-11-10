@@ -5,6 +5,7 @@ using API.Models;
 using API.Test.Helpers;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -36,23 +37,23 @@ namespace API.Test.Integration
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var passwordHasher = scope.ServiceProvider.GetRequiredService<API.Services.PasswordHashing.IPasswordHasher>();
 
-                var user = new UserLogin
+                var user = new user_login
                 {
                     email = email,
                     username = username,
-                    password = passwordHasher.HashPassword(password),
-                    full_name = "Extended Test User",
-                    created_at = DateTime.Now
+                    password_hash = passwordHasher.HashPassword(password),
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
                 };
 
                 await dbContext.user_logins.AddAsync(user);
                 await dbContext.SaveChangesAsync();
-                userId = user.id;
+                userId = user.userid;
             }
 
             var loginForm = new MultipartFormDataContent
             {
-                { new StringContent(username), "Username" },
+                { new StringContent(email), "Email" },
                 { new StringContent(password), "Password" }
             };
 
@@ -77,13 +78,13 @@ namespace API.Test.Integration
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var passwordHasher = scope.ServiceProvider.GetRequiredService<API.Services.PasswordHashing.IPasswordHasher>();
 
-                var user = new UserLogin
+                var user = new user_login
                 {
                     email = email,
                     username = username,
-                    password = passwordHasher.HashPassword(password),
-                    full_name = "Login Form Test User",
-                    created_at = DateTime.Now
+                    password_hash = passwordHasher.HashPassword(password),
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
                 };
 
                 await dbContext.user_logins.AddAsync(user);
@@ -92,7 +93,7 @@ namespace API.Test.Integration
 
             var formData = new MultipartFormDataContent
             {
-                { new StringContent(username), "Username" },
+                { new StringContent(email), "Email" },
                 { new StringContent(password), "Password" }
             };
 
@@ -195,13 +196,13 @@ namespace API.Test.Integration
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var passwordHasher = scope.ServiceProvider.GetRequiredService<API.Services.PasswordHashing.IPasswordHasher>();
 
-                var user = new UserLogin
+                var user = new user_login
                 {
                     email = email,
                     username = username,
-                    password = passwordHasher.HashPassword("OldPassword123!"),
-                    full_name = "Forgot Password Test User",
-                    created_at = DateTime.Now
+                    password_hash = passwordHasher.HashPassword("OldPassword123!"),
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
                 };
 
                 await dbContext.user_logins.AddAsync(user);
@@ -226,9 +227,10 @@ namespace API.Test.Integration
         }
 
         [Fact]
-        public async Task ForgotPassword_WithNonExistentEmail_ShouldReturnBadRequest()
+        public async Task ForgotPassword_WithNonExistentEmail_ShouldReturnSuccess()
         {
             // Arrange
+            // For security: endpoint returns OK even for non-existent emails to prevent email enumeration
             var formData = new MultipartFormDataContent
             {
                 { new StringContent("nonexistent@example.com"), "Email" }
@@ -238,13 +240,18 @@ namespace API.Test.Integration
             var response = await _client.PostAsync("/api/user/forgot-password", formData);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var content = await response.Content.ReadAsStringAsync();
+            var jsonDoc = JsonDocument.Parse(content);
+            jsonDoc.RootElement.GetProperty("type").GetString().Should().Be(ResponseMessages.Success);
         }
 
         [Fact]
-        public async Task ForgotPassword_WithInvalidEmail_ShouldReturnBadRequest()
+        public async Task ForgotPassword_WithInvalidEmail_ShouldReturnSuccess()
         {
             // Arrange
+            // For security: endpoint returns OK even for invalid emails to prevent email enumeration
             var formData = new MultipartFormDataContent
             {
                 { new StringContent("invalidemail"), "Email" }
@@ -254,7 +261,12 @@ namespace API.Test.Integration
             var response = await _client.PostAsync("/api/user/forgot-password", formData);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            // The API returns OK for security reasons, not revealing if email format is invalid or email exists
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var content = await response.Content.ReadAsStringAsync();
+            var jsonDoc = JsonDocument.Parse(content);
+            jsonDoc.RootElement.GetProperty("type").GetString().Should().Be(ResponseMessages.Success);
         }
 
         [Fact]
@@ -271,27 +283,27 @@ namespace API.Test.Integration
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var passwordHasher = scope.ServiceProvider.GetRequiredService<API.Services.PasswordHashing.IPasswordHasher>();
 
-                var user = new UserLogin
+                var user = new user_login
                 {
                     email = email,
                     username = username,
-                    password = passwordHasher.HashPassword("OldPassword123!"),
-                    full_name = "Reset Password Test User",
-                    created_at = DateTime.Now
+                    password_hash = passwordHasher.HashPassword("OldPassword123!"),
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
                 };
 
                 await dbContext.user_logins.AddAsync(user);
 
-                var passwordResetOtp = new PasswordResetOtp
+                var passwordResetToken = new password_reset_tokens
                 {
                     email = email,
-                    otp_code = otpCode,
+                    token = otpCode,
                     expires_at = DateTime.Now.AddMinutes(15),
                     is_used = false,
                     created_at = DateTime.Now
                 };
 
-                await dbContext.password_reset_otps.AddAsync(passwordResetOtp);
+                await dbContext.password_reset_tokens.AddAsync(passwordResetToken);
                 await dbContext.SaveChangesAsync();
             }
 
@@ -299,8 +311,8 @@ namespace API.Test.Integration
             {
                 { new StringContent(email), "Email" },
                 { new StringContent(otpCode), "OtpCode" },
-                { new StringContent(newPassword), "NewPassword" },
-                { new StringContent(newPassword), "NewPasswordConfirm" }
+                { new StringContent(newPassword), "Password" },
+                { new StringContent(newPassword), "PasswordConfirm" }
             };
 
             // Act
@@ -326,13 +338,13 @@ namespace API.Test.Integration
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var passwordHasher = scope.ServiceProvider.GetRequiredService<API.Services.PasswordHashing.IPasswordHasher>();
 
-                var user = new UserLogin
+                var user = new user_login
                 {
                     email = email,
                     username = $"invuser{Guid.NewGuid().ToString().Substring(0, 8)}",
-                    password = passwordHasher.HashPassword("OldPassword123!"),
-                    full_name = "Invalid OTP Test User",
-                    created_at = DateTime.Now
+                    password_hash = passwordHasher.HashPassword("OldPassword123!"),
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
                 };
 
                 await dbContext.user_logins.AddAsync(user);
@@ -343,8 +355,8 @@ namespace API.Test.Integration
             {
                 { new StringContent(email), "Email" },
                 { new StringContent("999999"), "OtpCode" },
-                { new StringContent("NewPassword123!"), "NewPassword" },
-                { new StringContent("NewPassword123!"), "NewPasswordConfirm" }
+                { new StringContent("NewPassword123!"), "Password" },
+                { new StringContent("NewPassword123!"), "PasswordConfirm" }
             };
 
             // Act
@@ -366,27 +378,27 @@ namespace API.Test.Integration
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var passwordHasher = scope.ServiceProvider.GetRequiredService<API.Services.PasswordHashing.IPasswordHasher>();
 
-                var user = new UserLogin
+                var user = new user_login
                 {
                     email = email,
                     username = $"mismatch{Guid.NewGuid().ToString().Substring(0, 8)}",
-                    password = passwordHasher.HashPassword("OldPassword123!"),
-                    full_name = "Mismatch Test User",
-                    created_at = DateTime.Now
+                    password_hash = passwordHasher.HashPassword("OldPassword123!"),
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
                 };
 
                 await dbContext.user_logins.AddAsync(user);
 
-                var passwordResetOtp = new PasswordResetOtp
+                var passwordResetToken = new password_reset_tokens
                 {
                     email = email,
-                    otp_code = otpCode,
+                    token = otpCode,
                     expires_at = DateTime.Now.AddMinutes(15),
                     is_used = false,
                     created_at = DateTime.Now
                 };
 
-                await dbContext.password_reset_otps.AddAsync(passwordResetOtp);
+                await dbContext.password_reset_tokens.AddAsync(passwordResetToken);
                 await dbContext.SaveChangesAsync();
             }
 
@@ -394,8 +406,8 @@ namespace API.Test.Integration
             {
                 { new StringContent(email), "Email" },
                 { new StringContent(otpCode), "OtpCode" },
-                { new StringContent("NewPassword123!"), "NewPassword" },
-                { new StringContent("DifferentPassword123!"), "NewPasswordConfirm" }
+                { new StringContent("NewPassword123!"), "Password" },
+                { new StringContent("DifferentPassword123!"), "PasswordConfirm" }
             };
 
             // Act

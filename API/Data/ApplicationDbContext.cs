@@ -32,6 +32,9 @@ public partial class ApplicationDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Check if we're using in-memory database
+        var isInMemory = Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
         modelBuilder.Entity<user_login>(entity =>
         {
             entity.HasKey(e => e.userid).HasName("users_pkey");
@@ -48,7 +51,21 @@ public partial class ApplicationDbContext : DbContext
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.email).HasMaxLength(255);
-            entity.Property(e => e.is_confirmed).HasColumnType("bit(1)");
+
+            // For in-memory database, use bool converter for is_confirmed
+            if (isInMemory)
+            {
+                entity.Property(e => e.is_confirmed)
+                    .HasConversion(
+                        v => v != null && v.Length > 0 && v[0], // BitArray to bool
+                        v => v ? new System.Collections.BitArray(new[] { true }) : new System.Collections.BitArray(new[] { false }) // bool to BitArray
+                    );
+            }
+            else
+            {
+                entity.Property(e => e.is_confirmed).HasColumnType("bit(1)");
+            }
+
             entity.Property(e => e.password_hash).HasMaxLength(255);
             entity.Property(e => e.updated_at)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")

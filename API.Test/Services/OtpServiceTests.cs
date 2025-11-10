@@ -78,6 +78,12 @@ namespace API.Test.Services
         {
             // Arrange
             var email = "test@example.com";
+
+            // Create a pending user (required for the service to work)
+            var pendingUser = TestDataBuilder.CreatePendingUser(email);
+            await _dbContext.pending_users.AddAsync(pendingUser);
+
+            // Create an existing OTP
             var existingOtp = TestDataBuilder.CreateOtpCode(email, "111111");
             await _dbContext.otp_codes.AddAsync(existingOtp);
             await _dbContext.SaveChangesAsync();
@@ -86,11 +92,14 @@ namespace API.Test.Services
             var result = await _otpService.GenerateAndSaveOtpAsync(email);
 
             // Assert
+            result.IsSuccess.Should().BeTrue();
+
             var otpCount = await _dbContext.otp_codes.CountAsync(o => o.email == email);
             otpCount.Should().Be(1);
 
             var savedOtp = await _dbContext.otp_codes.FirstOrDefaultAsync(o => o.email == email);
             savedOtp!.otp_code.Should().NotBe("111111");
+            savedOtp!.otp_code.Should().Be(result.Value);
         }
 
         [Fact]

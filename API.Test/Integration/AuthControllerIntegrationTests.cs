@@ -1,8 +1,11 @@
 using API.Constants;
+using API.Data;
 using API.DTOs;
+using API.Models;
 using API.Test.Helpers;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -70,21 +73,28 @@ namespace API.Test.Integration
             var password = "Password123!";
             var username = $"loginuser{Guid.NewGuid().ToString().Substring(0, 8)}";
 
-            // Create and activate user
-            var user = TestDataBuilder.CreateUserLogin(email);
-            user.username = username;
-            user.password = password; // In real scenario, this would be hashed
-
+            // Create and activate user with proper password hashing and confirmation
             using (var scope = _factory.Services.CreateScope())
             {
-                var dbContext = scope.ServiceProvider.GetRequiredService<API.Data.ApplicationDbContext>();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var passwordHasher = scope.ServiceProvider.GetRequiredService<API.Services.PasswordHashing.IPasswordHasher>();
+
+                var user = new user_login
+                {
+                    email = email,
+                    username = username,
+                    password_hash = passwordHasher.HashPassword(password),
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
+                };
+
                 await dbContext.user_logins.AddAsync(user);
                 await dbContext.SaveChangesAsync();
             }
 
             var loginDto = new LoginDto
             {
-                Username = username,
+                Email = email,
                 Password = password
             };
 
@@ -107,7 +117,7 @@ namespace API.Test.Integration
             // Arrange
             var loginDto = new LoginDto
             {
-                Username = "nonexistentuser",
+                Email = "nonexistent@example.com",
                 Password = "WrongPassword123!"
             };
 
@@ -123,12 +133,12 @@ namespace API.Test.Integration
         }
 
         [Fact]
-        public async Task Login_WithEmptyUsername_ShouldReturnBadRequest()
+        public async Task Login_WithEmptyEmail_ShouldReturnBadRequest()
         {
             // Arrange
             var loginDto = new LoginDto
             {
-                Username = "",
+                Email = "",
                 Password = "Password123!"
             };
 
@@ -145,7 +155,7 @@ namespace API.Test.Integration
             // Arrange
             var loginDto = new LoginDto
             {
-                Username = "testuser123",
+                Email = "test@example.com",
                 Password = ""
             };
 

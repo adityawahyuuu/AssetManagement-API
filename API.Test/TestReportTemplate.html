@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Results Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 20px;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .filter-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-section label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .filter-dropdown {
+            padding: 8px 12px;
+            border: 2px solid #667eea;
+            border-radius: 4px;
+            background: white;
+            color: #333;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-dropdown:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .summary {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            background: white;
+        }
+
+        .summary-item {
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .summary-item.passed {
+            border-left-color: #4caf50;
+            background: #f1f8f4;
+        }
+
+        .summary-item.failed {
+            border-left-color: #f44336;
+            background: #fdf5f5;
+        }
+
+        .summary-item.skipped {
+            border-left-color: #ff9800;
+            background: #fffaf0;
+        }
+
+        .summary-item h3 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .summary-item p {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .results-section {
+            padding: 20px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table thead {
+            background: #f5f5f5;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .results-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .results-table tbody tr {
+            border-bottom: 1px solid #eee;
+            transition: background 0.3s ease;
+        }
+
+        .results-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        .results-table tbody tr.hidden {
+            display: none;
+        }
+
+        .results-table td {
+            padding: 12px;
+        }
+
+        .test-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .outcome {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .outcome.passed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .outcome.failed {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .outcome.skipped {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .duration {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .error-message {
+            color: #f44336;
+            font-size: 12px;
+            padding: 5px 0;
+            max-width: 300px;
+            word-wrap: break-word;
+        }
+
+        footer {
+            background: #f5f5f5;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .summary {
+                grid-template-columns: 1fr;
+            }
+
+            .results-table {
+                font-size: 12px;
+            }
+
+            .results-table td {
+                padding: 8px;
+            }
+
+            header h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Test Results Report</h1>
+            <p>Automated Test Execution Summary</p>
+        </header>
+
+        <div class="controls">
+            <div class="filter-section">
+                <label for="outcomeFilter">Filter by Outcome:</label>
+                <select id="outcomeFilter" class="filter-dropdown">
+                    <option value="all">All Results</option>
+                    <option value="passed">Passed Only</option>
+                    <option value="failed">Failed Only</option>
+                    <option value="skipped">Skipped Only</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="summary">
+            <div class="summary-item">
+                <h3 id="totalCount">0</h3>
+                <p>Total Tests</p>
+            </div>
+            <div class="summary-item passed">
+                <h3 id="passedCount">0</h3>
+                <p>Passed</p>
+            </div>
+            <div class="summary-item failed">
+                <h3 id="failedCount">0</h3>
+                <p>Failed</p>
+            </div>
+            <div class="summary-item skipped">
+                <h3 id="skippedCount">0</h3>
+                <p>Skipped</p>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Outcome</th>
+                        <th>Duration</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                    <!-- Results will be populated by JavaScript -->
+                </tbody>
+            </table>
+            <div class="no-results" id="noResults" style="display: none;">
+                No test results match the selected filter.
+            </div>
+        </div>
+
+        <footer>
+            <p>Test report generated on <span id="generatedTime">--</span></p>
+            <p>For more information about the test results, please review the detailed logs.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Sample test data - will be replaced with actual TRX data
+        const testResults = {
+            totalTests: 0,
+            passed: 0,
+            failed: 0,
+            skipped: 0,
+            results: []
+        };
+
+        // Escape HTML special characters
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Render test results into the table
+        function renderResults() {
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+
+            if (!testResults.results || testResults.results.length === 0) {
+                console.log('No test results to render');
+                return;
+            }
+
+            testResults.results.forEach(result => {
+                const row = document.createElement('tr');
+                const outcomeClass = result.outcome.toLowerCase();
+                row.dataset.outcome = outcomeClass;
+
+                const errorInfo = result.errorMessage && result.errorMessage.trim() !== '' ?
+                    `<div class="error-message">${escapeHtml(result.errorMessage)}</div>` : '';
+
+                row.innerHTML = `
+                    <td class="test-name">${escapeHtml(result.name)}</td>
+                    <td>
+                        <span class="outcome ${outcomeClass}">
+                            ${escapeHtml(result.outcome)}
+                        </span>
+                    </td>
+                    <td class="duration">${escapeHtml(result.duration)}</td>
+                    <td>${errorInfo}</td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            console.log(`Rendered ${testResults.results.length} test results`);
+        }
+
+        // Update summary statistics
+        function updateSummary() {
+            document.getElementById('totalCount').textContent = testResults.totalTests;
+            document.getElementById('passedCount').textContent = testResults.passed;
+            document.getElementById('failedCount').textContent = testResults.failed;
+            document.getElementById('skippedCount').textContent = testResults.skipped;
+        }
+
+        // Apply filter to table rows
+        function applyFilter(filterValue) {
+            const rows = document.querySelectorAll('#resultsBody tr');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const outcome = row.dataset.outcome;
+
+                if (filterValue === 'all' || outcome === filterValue) {
+                    row.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+
+            const noResults = document.getElementById('noResults');
+            if (noResults) {
+                noResults.style.display = visibleCount === 0 && rows.length > 0 ? 'block' : 'none';
+            }
+        }
+
+        // Attach filter dropdown listener
+        function attachFilterListener() {
+            const dropdown = document.getElementById('outcomeFilter');
+            if (dropdown) {
+                dropdown.addEventListener('change', (e) => {
+                    applyFilter(e.target.value);
+                });
+            }
+        }
+
+        // Initialize the report
+        function initializeReport() {
+            console.log('Initializing report with', testResults.totalTests, 'tests');
+            document.getElementById('generatedTime').textContent = new Date().toLocaleString();
+            updateSummary();
+            renderResults();
+            attachFilterListener();
+            applyFilter('all');
+            console.log('Report initialization complete');
+        }
+
+        // Initialize on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeReport);
+        } else {
+            // Page is already loaded
+            initializeReport();
+        }
+    </script>
+</body>
+</html>

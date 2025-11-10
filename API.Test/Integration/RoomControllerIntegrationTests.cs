@@ -6,6 +6,7 @@ using API.Test.Helpers;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -35,13 +36,13 @@ namespace API.Test.Integration
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var passwordHasher = scope.ServiceProvider.GetRequiredService<API.Services.PasswordHashing.IPasswordHasher>();
 
-                var user = new UserLogin
+                var user = new user_login
                 {
                     email = email,
                     username = username,
-                    password = passwordHasher.HashPassword(password),
-                    full_name = "Room Test User",
-                    created_at = DateTime.Now
+                    password_hash = passwordHasher.HashPassword(password),
+                    created_at = DateTime.Now,
+                    is_confirmed = new BitArray(1, true)
                 };
 
                 await dbContext.user_logins.AddAsync(user);
@@ -50,7 +51,7 @@ namespace API.Test.Integration
 
             var loginDto = new LoginDto
             {
-                Username = username,
+                Email = email,
                 Password = password
             };
 
@@ -69,8 +70,10 @@ namespace API.Test.Integration
 
             var addRoomDto = new AddRoomDto
             {
-                RoomNumber = $"Room{Guid.NewGuid().ToString().Substring(0, 8)}",
-                Description = "Test room description"
+                Name = $"Room{Guid.NewGuid().ToString().Substring(0, 8)}",
+                LengthM = 5.0m,
+                WidthM = 4.0m,
+                Notes = "Test room description"
             };
 
             // Act
@@ -91,8 +94,10 @@ namespace API.Test.Integration
             // Arrange
             var addRoomDto = new AddRoomDto
             {
-                RoomNumber = "Test Room",
-                Description = "Test description"
+                Name = "Test Room",
+                LengthM = 5.0m,
+                WidthM = 4.0m,
+                Notes = "Test description"
             };
 
             // Act
@@ -141,8 +146,10 @@ namespace API.Test.Integration
             // Create a room first
             var addRoomDto = new AddRoomDto
             {
-                RoomNumber = $"GetTest{Guid.NewGuid().ToString().Substring(0, 8)}",
-                Description = "Get test room"
+                Name = $"GetTest{Guid.NewGuid().ToString().Substring(0, 8)}",
+                LengthM = 5.0m,
+                WidthM = 4.0m,
+                Notes = "Get test room"
             };
 
             var createResponse = await _client.PostAsJsonAsync("/api/rooms", addRoomDto);
@@ -186,8 +193,10 @@ namespace API.Test.Integration
             // Create a room first
             var addRoomDto = new AddRoomDto
             {
-                RoomNumber = $"UpdateTest{Guid.NewGuid().ToString().Substring(0, 8)}",
-                Description = "Update test room"
+                Name = $"UpdateTest{Guid.NewGuid().ToString().Substring(0, 8)}",
+                LengthM = 5.0m,
+                WidthM = 4.0m,
+                Notes = "Update test room"
             };
 
             var createResponse = await _client.PostAsJsonAsync("/api/rooms", addRoomDto);
@@ -197,8 +206,8 @@ namespace API.Test.Integration
 
             var updateRoomDto = new UpdateRoomDto
             {
-                RoomNumber = "Updated Room Number",
-                Description = "Updated description"
+                Name = "Updated Room Number",
+                Notes = "Updated description"
             };
 
             // Act
@@ -219,8 +228,8 @@ namespace API.Test.Integration
             // Arrange
             var updateRoomDto = new UpdateRoomDto
             {
-                RoomNumber = "Test Room",
-                Description = "Test description"
+                Name = "Test Room",
+                Notes = "Test description"
             };
 
             // Act
@@ -240,8 +249,10 @@ namespace API.Test.Integration
             // Create a room first
             var addRoomDto = new AddRoomDto
             {
-                RoomNumber = $"DeleteTest{Guid.NewGuid().ToString().Substring(0, 8)}",
-                Description = "Delete test room"
+                Name = $"DeleteTest{Guid.NewGuid().ToString().Substring(0, 8)}",
+                LengthM = 5.0m,
+                WidthM = 4.0m,
+                Notes = "Delete test room"
             };
 
             var createResponse = await _client.PostAsJsonAsync("/api/rooms", addRoomDto);
