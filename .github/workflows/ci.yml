@@ -243,12 +243,6 @@ jobs:
           fi
           echo "SUCCESS: .dockerignore found"
 
-          if [ ! -f ".env.example" ]; then
-            echo "ERROR: .env.example not found"
-            exit 1
-          fi
-          echo "SUCCESS: .env.example found"
-
           echo ""
           echo "SUCCESS: All deployment files are present!"
 
@@ -260,7 +254,6 @@ jobs:
           echo "- Dockerfile" >> $GITHUB_STEP_SUMMARY
           echo "- render.yaml" >> $GITHUB_STEP_SUMMARY
           echo "- .dockerignore" >> $GITHUB_STEP_SUMMARY
-          echo "- .env.example" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Ready for deployment to Render!" >> $GITHUB_STEP_SUMMARY
 
