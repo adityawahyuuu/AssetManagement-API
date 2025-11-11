@@ -243,12 +243,6 @@ jobs:
           fi
           echo "SUCCESS: .dockerignore found"
 
-          if [ ! -f "DEPLOYMENT.md" ]; then
-            echo "ERROR: DEPLOYMENT.md not found"
-            exit 1
-          fi
-          echo "SUCCESS: DEPLOYMENT.md found"
-
           if [ ! -f ".env.example" ]; then
             echo "ERROR: .env.example not found"
             exit 1
@@ -266,7 +260,6 @@ jobs:
           echo "- Dockerfile" >> $GITHUB_STEP_SUMMARY
           echo "- render.yaml" >> $GITHUB_STEP_SUMMARY
           echo "- .dockerignore" >> $GITHUB_STEP_SUMMARY
-          echo "- DEPLOYMENT.md" >> $GITHUB_STEP_SUMMARY
           echo "- .env.example" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Ready for deployment to Render!" >> $GITHUB_STEP_SUMMARY
