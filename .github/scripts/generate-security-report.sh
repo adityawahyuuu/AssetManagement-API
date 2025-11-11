@@ -1,8 +1,6 @@
 #!/bin/bash
 # Generate security vulnerability scan report from template
 
-set -e
-
 OUTPUT_DIR="${1:-.}"
 SCAN_REPORT_FILE="${2:-security-report.txt}"
 
@@ -18,8 +16,14 @@ fi
 CURRENT_TIMESTAMP=$(date)
 SCAN_DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
-# Create the report
-cat > "$OUTPUT_DIR/report.html" << 'EOF'
+# Get scan results, escaping HTML special characters and shell metacharacters
+SCAN_RESULTS=""
+if [ -f "$SCAN_REPORT_FILE" ]; then
+    SCAN_RESULTS=$(cat "$SCAN_REPORT_FILE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/\$/\$$/g; s/\\/\\\\/g')
+fi
+
+# Create the report with direct variable substitution (no sed escaping needed)
+cat > "$OUTPUT_DIR/report.html" << TEMPLATE
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -113,16 +117,16 @@ cat > "$OUTPUT_DIR/report.html" << 'EOF'
             </div>
             <div class="item">
                 <strong>Status</strong>
-                {{VULN_STATUS}}
+                $VULN_STATUS
             </div>
             <div class="item">
                 <strong>Scan Date</strong>
-                {{SCAN_DATE}}
+                $SCAN_DATE
             </div>
         </div>
         <h2>Scan Details</h2>
         <div class="details">
-            <pre>{{SCAN_RESULTS}}</pre>
+            <pre>$SCAN_RESULTS</pre>
         </div>
         <h2>Recommendations</h2>
         <ul>
@@ -132,25 +136,10 @@ cat > "$OUTPUT_DIR/report.html" << 'EOF'
             <li>Use automated tools to detect vulnerabilities early</li>
             <li>Include security scanning in your CI/CD pipeline</li>
         </ul>
-        <div class="timestamp">Generated: {{CURRENT_TIMESTAMP}}</div>
+        <div class="timestamp">Generated: $CURRENT_TIMESTAMP</div>
     </div>
 </body>
 </html>
-EOF
-
-# Replace placeholders with actual values
-SCAN_RESULTS=""
-if [ -f "$SCAN_REPORT_FILE" ]; then
-    SCAN_RESULTS=$(cat "$SCAN_REPORT_FILE" | sed 's/[&/\]/\\&/g')
-fi
-
-VULN_STATUS_ESCAPED=$(echo "$VULN_STATUS" | sed 's/[&/\]/\\&/g')
-CURRENT_TIMESTAMP_ESCAPED=$(echo "$CURRENT_TIMESTAMP" | sed 's/[&/\]/\\&/g')
-SCAN_DATE_ESCAPED=$(echo "$SCAN_DATE" | sed 's/[&/\]/\\&/g')
-
-sed -i "s/{{VULN_STATUS}}/$VULN_STATUS_ESCAPED/g" "$OUTPUT_DIR/report.html"
-sed -i "s/{{SCAN_DATE}}/$SCAN_DATE_ESCAPED/g" "$OUTPUT_DIR/report.html"
-sed -i "s/{{CURRENT_TIMESTAMP}}/$CURRENT_TIMESTAMP_ESCAPED/g" "$OUTPUT_DIR/report.html"
-sed -i "s/{{SCAN_RESULTS}}/$SCAN_RESULTS/g" "$OUTPUT_DIR/report.html"
+TEMPLATE
 
 echo "Security report generated: $OUTPUT_DIR/report.html"
