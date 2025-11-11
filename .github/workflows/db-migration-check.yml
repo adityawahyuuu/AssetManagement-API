@@ -17,7 +17,14 @@ on:
 # Set environment variables
 env:
   DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
   POSTGRES_VERSION: '16'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   # Job 1: Validate migration file format and naming

@@ -21,6 +21,16 @@ on:
           - production
           - staging
 
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   # Check if CI workflow was successful
   check-ci-status:

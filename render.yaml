@@ -11,7 +11,7 @@ services:
 
     # Repository configuration
     repo: https://github.com/yourusername/AssetManagement-API  # Update with your repo URL
-    branch: development  # Deploy from development branch
+    branch: main  # Deploy from main branch (aligned with cd-render.yml workflow)
 
     # Docker configuration
     dockerfilePath: ./Dockerfile

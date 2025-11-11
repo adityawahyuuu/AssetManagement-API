@@ -16,6 +16,13 @@ concurrency:
 
 env:
   DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   # Skip if PR is in draft mode
@@ -112,9 +119,11 @@ jobs:
           dotnet test \
             --configuration Release \
             --no-build \
-            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=test-results.trx" \
+            --logger "console;verbosity=detailed" \
             --collect:"XPlat Code Coverage" \
-            --results-directory ./TestResults
+            --results-directory ./TestResults \
+            --settings API.Test/test.runsettings
 
       - name: Comment PR with results
         if: always()
