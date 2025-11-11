@@ -5,9 +5,6 @@ on:
   push:
     branches:
       - '**'  # Run on all branches
-  pull_request:
-    branches:
-      - '**'  # Run on PRs to any branch
 
 # Allow manual workflow runs
   workflow_dispatch:
