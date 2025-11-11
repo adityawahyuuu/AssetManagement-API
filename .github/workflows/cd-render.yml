@@ -52,9 +52,9 @@ jobs:
       - name: Add status to summary
         run: |
           if [ "${{ steps.check.outputs.deploy }}" == "true" ]; then
-            echo "### ✅ CI Checks Passed - Proceeding with Deployment" >> $GITHUB_STEP_SUMMARY
+            echo "### CI Checks Passed - Proceeding with Deployment" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ❌ CI Checks Failed - Deployment Cancelled" >> $GITHUB_STEP_SUMMARY
+            echo "### CI Checks Failed - Deployment Cancelled" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Deploy to Render
@@ -80,7 +80,7 @@ jobs:
           # Render automatically deploys when you push to the connected branch
           # This job confirms the deployment is triggered
 
-          echo "### 🚀 Deployment Triggered" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Triggered" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Render will automatically build and deploy the application." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -100,7 +100,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.deploy.outcome }}" == "success" ]; then
-            echo "### ✅ Deployment Initiated Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "### Deployment Initiated Successfully" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The application is being deployed to Render." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -110,7 +110,7 @@ jobs:
             echo "3. Verify health check at: https://assetmanagement-api.onrender.com/api/asset-categories" >> $GITHUB_STEP_SUMMARY
             echo "4. Test Swagger UI at: https://assetmanagement-api.onrender.com/" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+            echo "### Deployment Failed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Please check the logs and try again." >> $GITHUB_STEP_SUMMARY
           fi
@@ -129,7 +129,7 @@ jobs:
 
       - name: Check deployment status
         run: |
-          echo "### 📊 Deployment Verification" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Verification" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployment Information:**" >> $GITHUB_STEP_SUMMARY
           echo "- Environment: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY

@@ -223,41 +223,41 @@ jobs:
           echo "Checking deployment configuration files..."
 
           if [ ! -f "Dockerfile" ]; then
-            echo "❌ Dockerfile not found"
+            echo "ERROR: Dockerfile not found"
             exit 1
           fi
-          echo "✅ Dockerfile found"
+          echo "SUCCESS: Dockerfile found"
 
           if [ ! -f "render.yaml" ]; then
-            echo "❌ render.yaml not found"
+            echo "ERROR: render.yaml not found"
             exit 1
           fi
-          echo "✅ render.yaml found"
+          echo "SUCCESS: render.yaml found"
 
           if [ ! -f ".dockerignore" ]; then
-            echo "❌ .dockerignore not found"
+            echo "ERROR: .dockerignore not found"
             exit 1
           fi
-          echo "✅ .dockerignore found"
+          echo "SUCCESS: .dockerignore found"
 
           if [ ! -f "DEPLOYMENT.md" ]; then
-            echo "❌ DEPLOYMENT.md not found"
+            echo "ERROR: DEPLOYMENT.md not found"
             exit 1
           fi
-          echo "✅ DEPLOYMENT.md found"
+          echo "SUCCESS: DEPLOYMENT.md found"
 
           if [ ! -f ".env.example" ]; then
-            echo "❌ .env.example not found"
+            echo "ERROR: .env.example not found"
             exit 1
           fi
-          echo "✅ .env.example found"
+          echo "SUCCESS: .env.example found"
 
           echo ""
-          echo "✅ All deployment files are present!"
+          echo "SUCCESS: All deployment files are present!"
 
       - name: Summary
         run: |
-          echo "### ✅ Deployment Readiness Check Passed" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Readiness Check Passed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All required files for deployment are present:" >> $GITHUB_STEP_SUMMARY
           echo "- Dockerfile" >> $GITHUB_STEP_SUMMARY
@@ -266,7 +266,7 @@ jobs:
           echo "- DEPLOYMENT.md" >> $GITHUB_STEP_SUMMARY
           echo "- .env.example" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🚀 Ready for deployment to Render!" >> $GITHUB_STEP_SUMMARY
+          echo "Ready for deployment to Render!" >> $GITHUB_STEP_SUMMARY
 
   # Final job: Mark workflow as successful
   ci-success:
@@ -277,14 +277,14 @@ jobs:
     steps:
       - name: CI Success
         run: |
-          echo "### 🎉 CI Pipeline Completed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "### CI Pipeline Completed Successfully!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All checks passed:" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Build successful" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ All tests passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Code quality checks passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ No security vulnerabilities found" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Docker image builds successfully" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Deployment files validated" >> $GITHUB_STEP_SUMMARY
+          echo "- Build successful" >> $GITHUB_STEP_SUMMARY
+          echo "- All tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- Code quality checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "- No security vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker image builds successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- Deployment files validated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🚀 Ready to deploy to Render platform!" >> $GITHUB_STEP_SUMMARY
+          echo "Ready to deploy to Render platform!" >> $GITHUB_STEP_SUMMARY

@@ -51,34 +51,34 @@ jobs:
           PR_TITLE="${{ github.event.pull_request.title }}"
 
           if [ -z "$PR_TITLE" ]; then
-            echo "❌ PR title is empty"
+            echo "ERROR: PR title is empty"
             exit 1
           fi
 
           if [ ${#PR_TITLE} -lt 10 ]; then
-            echo "❌ PR title is too short (minimum 10 characters)"
+            echo "ERROR: PR title is too short (minimum 10 characters)"
             exit 1
           fi
 
-          echo "✅ PR title is valid: $PR_TITLE"
+          echo "SUCCESS: PR title is valid: $PR_TITLE"
 
       - name: Check PR description
         run: |
           PR_BODY="${{ github.event.pull_request.body }}"
 
           if [ -z "$PR_BODY" ] || [ "$PR_BODY" == "null" ]; then
-            echo "⚠️  PR description is empty - consider adding a description"
+            echo "WARNING: PR description is empty - consider adding a description"
             echo "A good PR description should include:" >> $GITHUB_STEP_SUMMARY
             echo "- What changes were made" >> $GITHUB_STEP_SUMMARY
             echo "- Why these changes were needed" >> $GITHUB_STEP_SUMMARY
             echo "- How to test the changes" >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ PR has a description"
+            echo "SUCCESS: PR has a description"
           fi
 
       - name: Check for breaking changes label
         run: |
-          echo "💡 Tip: Add appropriate labels to your PR" >> $GITHUB_STEP_SUMMARY
+          echo "TIP: Add appropriate labels to your PR" >> $GITHUB_STEP_SUMMARY
           echo "- 'breaking-change' for API breaking changes" >> $GITHUB_STEP_SUMMARY
           echo "- 'bug' for bug fixes" >> $GITHUB_STEP_SUMMARY
           echo "- 'enhancement' for new features" >> $GITHUB_STEP_SUMMARY
@@ -124,16 +124,16 @@ jobs:
             const { owner, repo } = context.repo;
             const pull_number = context.payload.pull_request.number;
 
-            let message = '### 🔍 PR Validation Results\n\n';
+            let message = '### PR Validation Results\n\n';
 
             if ('${{ job.status }}' === 'success') {
-              message += '✅ Build and tests passed successfully!\n\n';
+              message += 'SUCCESS: Build and tests passed successfully!\n\n';
               message += '**Next Steps:**\n';
               message += '- Review the code changes\n';
               message += '- Wait for full CI pipeline to complete\n';
               message += '- Merge when all checks pass\n';
             } else {
-              message += '❌ Build or tests failed\n\n';
+              message += 'FAILED: Build or tests failed\n\n';
               message += '**Please:**\n';
               message += '- Check the workflow logs for details\n';
               message += '- Fix any failing tests\n';
@@ -166,20 +166,20 @@ jobs:
           git fetch origin ${{ github.event.pull_request.base.ref }}
 
           if git merge-base --is-ancestor HEAD origin/${{ github.event.pull_request.base.ref }}; then
-            echo "✅ No conflicts detected"
-            echo "### ✅ No Merge Conflicts" >> $GITHUB_STEP_SUMMARY
+            echo "SUCCESS: No conflicts detected"
+            echo "### No Merge Conflicts" >> $GITHUB_STEP_SUMMARY
           else
             # Try to merge to check for conflicts
             git config user.name "github-actions"
             git config user.email "github-actions@github.com"
 
             if git merge --no-commit --no-ff origin/${{ github.event.pull_request.base.ref }}; then
-              echo "✅ Branch can be merged without conflicts"
-              echo "### ✅ No Merge Conflicts" >> $GITHUB_STEP_SUMMARY
+              echo "SUCCESS: Branch can be merged without conflicts"
+              echo "### No Merge Conflicts" >> $GITHUB_STEP_SUMMARY
               git merge --abort
             else
-              echo "⚠️ Merge conflicts detected - please resolve them"
-              echo "### ⚠️ Merge Conflicts Detected" >> $GITHUB_STEP_SUMMARY
+              echo "WARNING: Merge conflicts detected - please resolve them"
+              echo "### Merge Conflicts Detected" >> $GITHUB_STEP_SUMMARY
               echo "Please rebase or merge the base branch into your PR branch" >> $GITHUB_STEP_SUMMARY
               git merge --abort
             fi
@@ -208,7 +208,7 @@ jobs:
 
       - name: Check code formatting
         run: |
-          dotnet format --verify-no-changes --verbosity diagnostic || echo "⚠️ Code formatting issues found"
+          dotnet format --verify-no-changes --verbosity diagnostic || echo "WARNING: Code formatting issues found"
         continue-on-error: true
 
       - name: Count changed files
@@ -217,7 +217,7 @@ jobs:
           CHANGED_FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | wc -l)
           echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
 
-          echo "### 📊 Change Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "### Change Statistics" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Files Changed:** $CHANGED_FILES" >> $GITHUB_STEP_SUMMARY
 
@@ -226,13 +226,13 @@ jobs:
           CHANGED_FILES=${{ steps.changes.outputs.changed_files }}
 
           if [ $CHANGED_FILES -gt 50 ]; then
-            echo "⚠️ This PR changes $CHANGED_FILES files" >> $GITHUB_STEP_SUMMARY
+            echo "WARNING: This PR changes $CHANGED_FILES files" >> $GITHUB_STEP_SUMMARY
             echo "Consider splitting into smaller PRs for easier review" >> $GITHUB_STEP_SUMMARY
           elif [ $CHANGED_FILES -gt 20 ]; then
-            echo "💡 This PR changes $CHANGED_FILES files" >> $GITHUB_STEP_SUMMARY
+            echo "INFO: This PR changes $CHANGED_FILES files" >> $GITHUB_STEP_SUMMARY
             echo "Moderate size - ensure changes are well organized" >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ PR size is reasonable ($CHANGED_FILES files)" >> $GITHUB_STEP_SUMMARY
+            echo "SUCCESS: PR size is reasonable ($CHANGED_FILES files)" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Summary of PR validation
@@ -245,7 +245,7 @@ jobs:
     steps:
       - name: Generate summary
         run: |
-          echo "### 📋 PR Validation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "### PR Validation Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Check job statuses
@@ -258,38 +258,38 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$METADATA" == "success" ]; then
-            echo "- ✅ PR metadata validated" >> $GITHUB_STEP_SUMMARY
+            echo "- SUCCESS: PR metadata validated" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- ❌ PR metadata check failed" >> $GITHUB_STEP_SUMMARY
+            echo "- FAILED: PR metadata check failed" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [ "$VALIDATION" == "success" ]; then
-            echo "- ✅ Build and tests passed" >> $GITHUB_STEP_SUMMARY
+            echo "- SUCCESS: Build and tests passed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- ❌ Build or tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "- FAILED: Build or tests failed" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [ "$CONFLICTS" == "success" ]; then
-            echo "- ✅ No merge conflicts" >> $GITHUB_STEP_SUMMARY
+            echo "- SUCCESS: No merge conflicts" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- ⚠️ Merge conflict check had issues" >> $GITHUB_STEP_SUMMARY
+            echo "- WARNING: Merge conflict check had issues" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [ "$CODE_REVIEW" == "success" ]; then
-            echo "- ✅ Code review checks passed" >> $GITHUB_STEP_SUMMARY
+            echo "- SUCCESS: Code review checks passed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- ⚠️ Code review checks had issues" >> $GITHUB_STEP_SUMMARY
+            echo "- WARNING: Code review checks had issues" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Overall status
           if [ "$METADATA" == "success" ] && [ "$VALIDATION" == "success" ]; then
-            echo "### ✅ PR is ready for review!" >> $GITHUB_STEP_SUMMARY
+            echo "### PR is ready for review!" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The full CI pipeline will run when this PR is ready to merge." >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ❌ PR needs attention" >> $GITHUB_STEP_SUMMARY
+            echo "### PR needs attention" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Please address the issues above before requesting review." >> $GITHUB_STEP_SUMMARY
           fi

@@ -42,7 +42,7 @@ jobs:
       - name: List changed migration files
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
-          echo "### 📝 Changed Migration Files" >> $GITHUB_STEP_SUMMARY
+          echo "### Changed Migration Files" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The following migration files were modified:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -64,23 +64,23 @@ jobs:
 
               # Check if filename matches pattern: digits_description.sql
               if ! [[ $filename =~ ^[0-9]{3}_[a-z_]+\.sql$ ]]; then
-                echo "❌ Invalid migration filename: $filename"
+                echo "ERROR: Invalid migration filename: $filename"
                 echo "   Expected format: NNN_description.sql (e.g., 001_create_users.sql)"
                 ERRORS=$((ERRORS + 1))
               else
-                echo "✅ Valid migration filename: $filename"
+                echo "SUCCESS: Valid migration filename: $filename"
               fi
             fi
           done
 
           if [ $ERRORS -gt 0 ]; then
             echo ""
-            echo "❌ $ERRORS migration file(s) have invalid naming"
+            echo "ERROR: $ERRORS migration file(s) have invalid naming"
             exit 1
           fi
 
           echo ""
-          echo "✅ All migration files follow naming convention"
+          echo "SUCCESS: All migration files follow naming convention"
 
       - name: Check for duplicate migration numbers
         run: |
@@ -91,12 +91,12 @@ jobs:
             DUPLICATES=$(ls migrations/*.sql 2>/dev/null | sed 's/.*\/\([0-9]*\)_.*/\1/' | sort | uniq -d)
 
             if [ ! -z "$DUPLICATES" ]; then
-              echo "❌ Duplicate migration numbers found:"
+              echo "ERROR: Duplicate migration numbers found:"
               echo "$DUPLICATES"
               exit 1
             fi
 
-            echo "✅ No duplicate migration numbers"
+            echo "SUCCESS: No duplicate migration numbers"
           fi
 
       - name: Validate SQL syntax
@@ -113,16 +113,16 @@ jobs:
 
               # Check for basic SQL syntax requirements
               if ! grep -qi "BEGIN\|SELECT\|INSERT\|UPDATE\|DELETE\|CREATE\|ALTER\|DROP" "$file"; then
-                echo "⚠️  Warning: $file doesn't contain any SQL statements"
+                echo "WARNING: $file doesn't contain any SQL statements"
               fi
 
               # Check for unterminated statements (missing semicolons)
               # This is a basic check and may need refinement
               if grep -qE "(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP).*[^;]$" "$file"; then
-                echo "⚠️  Warning: $file may have unterminated SQL statements"
+                echo "WARNING: $file may have unterminated SQL statements"
               fi
 
-              echo "✅ $file syntax validation passed"
+              echo "SUCCESS: $file syntax validation passed"
             fi
           done
 
@@ -130,7 +130,7 @@ jobs:
         if: always()
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ✅ Migration File Validation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "### Migration File Validation Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All migration files passed validation checks." >> $GITHUB_STEP_SUMMARY
 
@@ -168,16 +168,16 @@ jobs:
         run: |
           echo "Creating database schema..."
           PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -c "CREATE SCHEMA IF NOT EXISTS kosan;"
-          echo "✅ Schema created"
+          echo "SUCCESS: Schema created"
 
       - name: Apply initial schema
         run: |
           if [ -f "migrations/database_schema.sql" ]; then
             echo "Applying initial database schema..."
             PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -f migrations/database_schema.sql
-            echo "✅ Initial schema applied"
+            echo "SUCCESS: Initial schema applied"
           else
-            echo "⚠️  No initial schema file found (migrations/database_schema.sql)"
+            echo "WARNING: No initial schema file found (migrations/database_schema.sql)"
           fi
 
       - name: Apply all migrations in order
@@ -191,17 +191,17 @@ jobs:
 
               # Apply migration
               if PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -f "$file"; then
-                echo "✅ Successfully applied: $file"
+                echo "SUCCESS: Successfully applied: $file"
               else
-                echo "❌ Failed to apply: $file"
+                echo "ERROR: Failed to apply: $file"
                 exit 1
               fi
             done
 
             echo ""
-            echo "✅ All migrations applied successfully"
+            echo "SUCCESS: All migrations applied successfully"
           else
-            echo "⚠️  No migrations directory found"
+            echo "WARNING: No migrations directory found"
           fi
 
       - name: Verify database state
@@ -212,9 +212,9 @@ jobs:
           SCHEMA_EXISTS=$(PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -t -c "SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = 'kosan');")
 
           if [[ $SCHEMA_EXISTS == *"t"* ]]; then
-            echo "✅ Schema 'kosan' exists"
+            echo "SUCCESS: Schema 'kosan' exists"
           else
-            echo "❌ Schema 'kosan' not found"
+            echo "ERROR: Schema 'kosan' not found"
             exit 1
           fi
 
@@ -226,13 +226,13 @@ jobs:
       - name: Test migration rollback (if applicable)
         run: |
           echo "Testing migration rollback capability..."
-          echo "⚠️  Note: Manual rollback procedures should be documented in DEPLOYMENT.md"
+          echo "NOTE: Manual rollback procedures should be documented in DEPLOYMENT.md"
 
       - name: Add test summary
         if: always()
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ✅ Migration Testing Complete" >> $GITHUB_STEP_SUMMARY
+          echo "### Migration Testing Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All migrations were successfully applied to a test PostgreSQL database." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -271,17 +271,17 @@ jobs:
 
               # Check for potentially breaking changes
               if grep -qi "DROP TABLE\|DROP COLUMN\|ALTER.*DROP" "$file"; then
-                echo "⚠️  WARNING: $file contains DROP statements that may be breaking"
+                echo "WARNING: $file contains DROP statements that may be breaking"
                 WARNINGS=$((WARNINGS + 1))
               fi
 
               if grep -qi "ALTER.*NOT NULL\|ADD.*NOT NULL" "$file"; then
-                echo "⚠️  WARNING: $file adds NOT NULL constraint which may fail on existing data"
+                echo "WARNING: $file adds NOT NULL constraint which may fail on existing data"
                 WARNINGS=$((WARNINGS + 1))
               fi
 
               if grep -qi "ALTER.*UNIQUE\|ADD.*UNIQUE" "$file"; then
-                echo "⚠️  WARNING: $file adds UNIQUE constraint which may fail on existing data"
+                echo "WARNING: $file adds UNIQUE constraint which may fail on existing data"
                 WARNINGS=$((WARNINGS + 1))
               fi
             fi
@@ -289,7 +289,7 @@ jobs:
 
           if [ $WARNINGS -gt 0 ]; then
             echo ""
-            echo "⚠️  $WARNINGS potential breaking change(s) detected"
+            echo "WARNING: $WARNINGS potential breaking change(s) detected"
             echo ""
             echo "Please ensure:"
             echo "1. Database backup is available"
@@ -298,7 +298,7 @@ jobs:
             echo "4. Stakeholders are informed of the changes"
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### ⚠️ Potential Breaking Changes Detected" >> $GITHUB_STEP_SUMMARY
+            echo "### Potential Breaking Changes Detected" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "$WARNINGS potential breaking change(s) found in migration files." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -308,7 +308,7 @@ jobs:
             echo "- Test on production-like data" >> $GITHUB_STEP_SUMMARY
             echo "- Document rollback procedure" >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ No obvious breaking changes detected"
+            echo "SUCCESS: No obvious breaking changes detected"
           fi
 
   # Final job: Migration check summary
@@ -320,11 +320,11 @@ jobs:
     steps:
       - name: Summary
         run: |
-          echo "### ✅ Database Migration Validation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "### Database Migration Validation Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All migration validation checks passed:" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Migration file format validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Migrations tested on PostgreSQL 16" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Breaking changes analyzed" >> $GITHUB_STEP_SUMMARY
+          echo "- Migration file format validated" >> $GITHUB_STEP_SUMMARY
+          echo "- Migrations tested on PostgreSQL 16" >> $GITHUB_STEP_SUMMARY
+          echo "- Breaking changes analyzed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🚀 Migrations are ready to be applied to production!" >> $GITHUB_STEP_SUMMARY
+          echo "Migrations are ready to be applied to production!" >> $GITHUB_STEP_SUMMARY

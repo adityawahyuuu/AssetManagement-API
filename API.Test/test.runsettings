@@ -8,10 +8,10 @@
     <!-- Path relative to solution directory -->
     <ResultsDirectory>.\TestResults</ResultsDirectory>
 
-    <!-- [x86] | x64: architecture of test host process -->
+    <!-- Architecture of test host process -->
     <TargetPlatform>x64</TargetPlatform>
 
-    <!-- Framework to use for tests: net8.0 -->
+    <!-- Framework to use for tests -->
     <TargetFrameworkVersion>net8.0</TargetFrameworkVersion>
 
     <!-- Disable app domains to improve test performance -->
@@ -37,7 +37,7 @@
         </Configuration>
       </DataCollector>
 
-      <!-- XPlat code coverage -->
+      <!-- XPlat code coverage collector -->
       <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
           <Format>json,cobertura,lcov,opencover</Format>
@@ -64,56 +64,6 @@
       </Logger>
     </Loggers>
   </LoggerRunSettings>
-
-  <!-- Informational Messages and Test Report Documentation -->
-  <!--
-    TEST REPORT GENERATION WORKFLOW:
-
-    Step 1: Run tests
-    - Command: dotnet test --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
-    - This command uses the settings in this file (test.runsettings)
-    - Generates: TestResults/test-results.trx (test results XML)
-    - Generates: TestResults/coverage.cobertura.xml (code coverage)
-
-    Alternative command with code coverage collection:
-    - Command: dotnet test --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
-
-    Step 2: Generate custom HTML report
-    - Command: .\GenerateCustomTestReport.ps1
-    - Generates: custom-test-report.html (interactive report)
-    - Automatically creates TestResults directory if it doesn't exist
-
-    OUTPUT FILES:
-
-    1. test-results.trx (TRX Format)
-       - Standard test results in XML format
-       - Can be opened in Visual Studio or other test result viewers
-       - Contains detailed test outcome information
-       - Overwrites on each test run (you can rename it to preserve previous results)
-
-    2. custom-test-report.html (Custom Interactive HTML Report)
-       - Generated from GenerateCustomTestReport.ps1
-       - Human-readable HTML test report with interactive filtering
-       - Shows test summary, results table, and error details
-       - Features: Filter by Passed/Failed/Skipped outcomes
-       - Open in any web browser to view results
-
-    3. coverage.cobertura.xml (Code Coverage Report)
-       - Code coverage data in Cobertura format
-       - Can be viewed in various code coverage viewers
-       - Generated when -collect:"XPlat Code Coverage" is used
-
-    VIEWING RESULTS:
-
-    - Custom HTML Report (Recommended): TestResults/custom-test-report.html
-    - TRX Files (Visual Studio): TestResults/test-results.trx
-
-    INTERPRETING RESULTS:
-
-    - Passed: Test executed successfully and all assertions passed
-    - Failed: Test executed but one or more assertions failed (error details shown)
-    - Skipped: Test was not executed (may be marked as ignored or conditional)
-  -->
 
   <!-- xUnit specific settings -->
   <xUnit>
