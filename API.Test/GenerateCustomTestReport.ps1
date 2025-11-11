@@ -114,48 +114,71 @@ Write-Host "Custom Test Report Generator"
 Write-Host "======================================================================"
 Write-Host ""
 
+# Ensure TestResults directory exists
+$testResultsDir = "TestResults"
+if (-not (Test-Path $testResultsDir)) {
+    Write-Host "TestResults directory not found. Creating it..." -ForegroundColor Yellow
+    New-Item -ItemType Directory -Path $testResultsDir -Force | Out-Null
+    Write-Host "TestResults directory created successfully" -ForegroundColor Green
+    Write-Host ""
+}
+else {
+    Write-Host "TestResults directory found" -ForegroundColor Green
+    Write-Host ""
+}
+
 # Find TRX file
 if (-not $TrxFilePath) {
     $latestTrx = Get-LatestTrxFile
     if ($latestTrx) {
         $TrxFilePath = $latestTrx.FullName
-        Write-Host "Found latest TRX file: $($latestTrx.Name)"
+        Write-Host "Found latest TRX file: $($latestTrx.Name)" -ForegroundColor Green
     }
     else {
-        Write-Host "No TRX file found in TestResults directory"
+        Write-Host ""
+        Write-Host "ERROR: No TRX file found in TestResults directory" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "Solution: Please run tests first using:" -ForegroundColor Yellow
+        Write-Host "  dotnet test"
+        Write-Host ""
+        Write-Host "Then run this script again to generate the report."
+        Write-Host ""
         exit 1
     }
 }
 else {
     if (-not (Test-Path $TrxFilePath)) {
-        Write-Host "TRX file not found: $TrxFilePath"
+        Write-Host ""
+        Write-Host "ERROR: TRX file not found: $TrxFilePath" -ForegroundColor Red
+        Write-Host ""
         exit 1
     }
-    Write-Host "Using TRX file: $TrxFilePath"
+    Write-Host "Using specified TRX file: $TrxFilePath" -ForegroundColor Green
 }
+Write-Host ""
 
 # Check if template exists
 if (-not (Test-Path $TemplatePath)) {
-    Write-Host "Template file not found: $TemplatePath"
+    Write-Host "ERROR: Template file not found: $TemplatePath" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Template file found: $TemplatePath"
+Write-Host "Template file found: $TemplatePath" -ForegroundColor Green
 Write-Host ""
 
 # Parse TRX file
 Write-Host "Parsing test results..."
 $testResults = Parse-TrxFile -Path $TrxFilePath
-Write-Host "Found $($testResults.totalTests) tests"
-Write-Host "  Passed: $($testResults.passed)"
-Write-Host "  Failed: $($testResults.failed)"
-Write-Host "  Skipped: $($testResults.skipped)"
+Write-Host "Found $($testResults.totalTests) tests total" -ForegroundColor Cyan
+Write-Host "  Passed: $($testResults.passed)" -ForegroundColor Green
+Write-Host "  Failed: $($testResults.failed)" -ForegroundColor Yellow
+Write-Host "  Skipped: $($testResults.skipped)" -ForegroundColor Yellow
 Write-Host ""
 
 # Generate JavaScript data
 Write-Host "Generating JavaScript data..."
 $jsData = ConvertTo-JavaScriptData -testResults $testResults
-Write-Host "JavaScript data generated"
+Write-Host "JavaScript data generated successfully" -ForegroundColor Green
 Write-Host ""
 
 # Read template
@@ -174,11 +197,13 @@ if (-not (Test-Path $outputDir)) {
 Set-Content -Path $OutputPath -Value $modifiedContent -Encoding UTF8
 
 Write-Host "======================================================================"
-Write-Host "Report saved to: $OutputPath"
+Write-Host "SUCCESS: Report generated successfully!" -ForegroundColor Green
 Write-Host "======================================================================"
+Write-Host ""
+Write-Host "Report saved to: $OutputPath" -ForegroundColor Green
 Write-Host ""
 Write-Host "To view the report:"
 Write-Host "  1. Open the file in your web browser"
-Write-Host "  2. Use the dropdown to filter results"
-Write-Host "  3. Check error details for failed tests"
+Write-Host "  2. Use the dropdown menu to filter results"
+Write-Host "  3. Review test results and error details"
 Write-Host ""

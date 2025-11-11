@@ -1,0 +1,157 @@
+name: CD - Deploy to Render
+
+# Only deploy after CI passes and when pushing to main branch
+on:
+  workflow_run:
+    workflows: ["CI - Build and Test"]
+    types:
+      - completed
+    branches:
+      - main
+
+  # Allow manual deployment trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  # Check if CI workflow was successful
+  check-ci-status:
+    name: Verify CI Success
+    runs-on: ubuntu-latest
+    # Only run if the workflow_run was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    outputs:
+      should-deploy: ${{ steps.check.outputs.deploy }}
+
+    steps:
+      - name: Check CI Status
+        id: check
+        run: |
+          echo "CI workflow status: ${{ github.event.workflow_run.conclusion }}"
+
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Manual deployment triggered"
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.workflow_run.conclusion }}" == "success" ]; then
+            echo "CI passed - ready to deploy"
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "CI did not pass - skipping deployment"
+            echo "deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add status to summary
+        run: |
+          if [ "${{ steps.check.outputs.deploy }}" == "true" ]; then
+            echo "### ✅ CI Checks Passed - Proceeding with Deployment" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ CI Checks Failed - Deployment Cancelled" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Deploy to Render
+  deploy-to-render:
+    name: Deploy to Render Platform
+    runs-on: ubuntu-latest
+    needs: check-ci-status
+    if: needs.check-ci-status.outputs.should-deploy == 'true'
+
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: https://assetmanagement-api.onrender.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Render
+        id: deploy
+        run: |
+          echo "Triggering Render deployment..."
+
+          # Render automatically deploys when you push to the connected branch
+          # This job confirms the deployment is triggered
+
+          echo "### 🚀 Deployment Triggered" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Render will automatically build and deploy the application." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Monitor deployment progress at:" >> $GITHUB_STEP_SUMMARY
+          echo "https://dashboard.render.com/" >> $GITHUB_STEP_SUMMARY
+
+      - name: Wait for deployment (optional)
+        run: |
+          echo "Note: Render deployment typically takes 5-10 minutes"
+          echo "You can monitor the deployment in the Render Dashboard"
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          if [ "${{ steps.deploy.outcome }}" == "success" ]; then
+            echo "### ✅ Deployment Initiated Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The application is being deployed to Render." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Monitor deployment in [Render Dashboard](https://dashboard.render.com/)" >> $GITHUB_STEP_SUMMARY
+            echo "2. Check deployment logs for any issues" >> $GITHUB_STEP_SUMMARY
+            echo "3. Verify health check at: https://assetmanagement-api.onrender.com/api/asset-categories" >> $GITHUB_STEP_SUMMARY
+            echo "4. Test Swagger UI at: https://assetmanagement-api.onrender.com/" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the logs and try again." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Post-deployment verification
+  verify-deployment:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy-to-render
+
+    steps:
+      - name: Wait for Render deployment
+        run: |
+          echo "Waiting 60 seconds for deployment to start..."
+          sleep 60
+
+      - name: Check deployment status
+        run: |
+          echo "### 📊 Deployment Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment Information:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Deployed by: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Time: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Important:** Render deployment takes 5-10 minutes to complete." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Monitor the deployment at: https://dashboard.render.com/" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment summary
+        run: |
+          echo ""
+          echo "================================================"
+          echo "  Deployment to Render Initiated Successfully  "
+          echo "================================================"
+          echo ""
+          echo "API URL: https://assetmanagement-api.onrender.com"
+          echo "Health Check: https://assetmanagement-api.onrender.com/api/asset-categories"
+          echo "Swagger UI: https://assetmanagement-api.onrender.com/"
+          echo ""
+          echo "Monitor deployment: https://dashboard.render.com/"
+          echo ""

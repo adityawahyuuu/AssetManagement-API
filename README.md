@@ -209,391 +209,16 @@ dotnet ef database update --connection "your-production-connection-string"
 
 ## API Documentation
 
-Once deployed, access the interactive API documentation at:
-
-- **Local (HTTPS)**: `https://localhost:7146` (recommended)
-- **Local (HTTP)**: `http://localhost:5080` (redirects to HTTPS)
-- **Production**: `https://your-service-name.onrender.com` (HTTPS only)
-
-The Swagger UI is available at the root URL and provides:
-- Complete API endpoint documentation
-- Request/response schemas
-- Interactive testing capabilities
-- JWT authentication support
-
-### Swagger UI Authentication
-
-For security, Swagger UI is protected with HTTP Basic Authentication in production environments.
-
-**Local Development:**
-- Swagger authentication is **disabled** by default
-- Access Swagger UI directly without credentials
-
-**Production:**
-- Swagger authentication is **enabled** by default
-- You'll be prompted to enter credentials when accessing Swagger UI
-- Default credentials (change these in production):
-  - Username: `admin`
-  - Password: `admin123`
-
-**To Configure Swagger Authentication:**
-
-Add these environment variables in Render:
-
-| Variable Name | Description | Example Value |
-|--------------|-------------|---------------|
-| `Swagger__Username` | Swagger UI username | `your-secure-username` |
-| `Swagger__Password` | Swagger UI password | `your-secure-password` |
-| `Swagger__AuthEnabled` | Enable/disable authentication | `true` or `false` |
-
-**To Disable Swagger Authentication (Not Recommended for Production):**
-
-Set `Swagger__AuthEnabled` to `false` in your environment variables.
-
-**Security Best Practices:**
-- Always use strong, unique credentials for Swagger UI in production
-- Consider using environment-specific passwords
-- Regularly rotate Swagger UI credentials
-- Keep `Swagger__AuthEnabled` set to `true` in production
-
-## Testing with Swagger
-
-### 1. Access Swagger UI
-
-Navigate to your API URL in a browser. You'll see the Swagger UI interface.
-
-### 2. Register a New User
-
-1. Expand `POST /api/user/register`
-2. Click "Try it out"
-3. Fill in the request body:
-   ```json
-   {
-     "username": "testuser123",
-     "email": "test@example.com",
-     "password": "Test123!",
-     "fullName": "Test User"
-   }
-   ```
-4. Click "Execute"
-5. Check your email for the OTP code
-
-### 3. Verify Email with OTP
-
-1. Expand `POST /api/user/verify`
-2. Click "Try it out"
-3. Enter:
-   ```json
-   {
-     "email": "test@example.com",
-     "otpCode": "123456"
-   }
-   ```
-4. Click "Execute"
-
-### 4. Login and Get JWT Token
-
-1. Expand `POST /api/auth/login` or `POST /api/user/login`
-2. Click "Try it out"
-3. Enter credentials:
-   ```json
-   {
-     "username": "testuser123",
-     "password": "Test123!"
-   }
-   ```
-4. Click "Execute"
-5. Copy the `token` from the response
-
-### 5. Authorize Swagger with JWT
-
-1. Click the "Authorize" button (lock icon) at the top
-2. Enter: `Bearer your-token-here` (include the word "Bearer" with a space)
-3. Click "Authorize"
-4. Click "Close"
-
-### 6. Test Protected Endpoints
-
-Now you can test any endpoint that requires authentication:
-
-- **Get Current User**: `GET /api/user/auth/me`
-- **Create Room**: `POST /api/rooms`
-- **Get All Rooms**: `GET /api/rooms`
-- **Create Asset**: `POST /api/assets`
-- **Get All Assets**: `GET /api/assets`
-
-## API Endpoints Overview
-
-### Authentication Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/auth/register` | Register new user (JSON) | No |
-| POST | `/api/auth/login` | Login user (JSON) | No |
-| POST | `/api/user/register` | Register new user (Form) | No |
-| POST | `/api/user/login` | Login user (Form) | No |
-| POST | `/api/user/verify` | Verify email with OTP | No |
-| POST | `/api/user/resend-otp` | Resend OTP code | No |
-| POST | `/api/user/forgot-password` | Request password reset | No |
-| POST | `/api/user/reset-password` | Reset password with OTP | No |
-| GET | `/api/user/auth/me` | Get current user info | Yes |
-| POST | `/api/user/logout` | Logout (client-side) | Yes |
-
-### Room Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/rooms` | Get all user rooms | Yes |
-| GET | `/api/rooms/{id}` | Get room by ID | Yes |
-| POST | `/api/rooms` | Create new room | Yes |
-| PUT | `/api/rooms/{id}` | Update room | Yes |
-| DELETE | `/api/rooms/{id}` | Delete room and assets | Yes |
-
-### Asset Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/assets` | Get all assets (paginated) | Yes |
-| GET | `/api/assets/{id}` | Get asset by ID | Yes |
-| GET | `/api/assets/room/{roomId}` | Get assets by room ID | Yes |
-| POST | `/api/assets` | Create new asset | Yes |
-| PUT | `/api/assets/{id}` | Update asset | Yes |
-| DELETE | `/api/assets/{id}` | Delete asset | Yes |
-
-### Asset Category Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/asset-categories` | Get all asset categories | No |
-
-## Client-Side Integration
-
-### JavaScript/React Example
-
-```javascript
-const API_BASE_URL = 'https://your-api.onrender.com';
-
-// 1. Register User
-async function registerUser(userData) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      username: userData.username,
-      email: userData.email,
-      password: userData.password,
-      fullName: userData.fullName
-    })
-  });
-  return await response.json();
-}
-
-// 2. Login and Store Token
-async function login(username, password) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ username, password })
-  });
-
-  const result = await response.json();
-
-  if (result.type === 'success') {
-    // Store token in localStorage
-    localStorage.setItem('authToken', result.data.token);
-    localStorage.setItem('userId', result.data.userId);
-  }
-
-  return result;
-}
-
-// 3. Make Authenticated Request
-async function getRooms() {
-  const token = localStorage.getItem('authToken');
-
-  const response = await fetch(`${API_BASE_URL}/api/rooms`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    }
-  });
-
-  return await response.json();
-}
-
-// 4. Create Room
-async function createRoom(roomData) {
-  const token = localStorage.getItem('authToken');
-
-  const response = await fetch(`${API_BASE_URL}/api/rooms`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      roomNumber: roomData.roomNumber,
-      description: roomData.description
-    })
-  });
-
-  return await response.json();
-}
-
-// 5. Get Assets with Pagination
-async function getAssets(page = 1, pageSize = 10) {
-  const token = localStorage.getItem('authToken');
-
-  const response = await fetch(
-    `${API_BASE_URL}/api/assets?page=${page}&pageSize=${pageSize}`,
-    {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      }
-    }
-  );
-
-  return await response.json();
-}
-
-// 6. Error Handling Example
-async function apiRequest(url, options = {}) {
-  try {
-    const token = localStorage.getItem('authToken');
-
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers,
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'API request failed');
-    }
-
-    return data;
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
-  }
-}
-```
-
-### Using Axios
-
-```javascript
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL: 'https://your-api.onrender.com',
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
-
-// Request interceptor to add token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Usage
-export const authAPI = {
-  login: (credentials) => api.post('/api/auth/login', credentials),
-  register: (userData) => api.post('/api/auth/register', userData),
-  getCurrentUser: () => api.get('/api/user/auth/me'),
-};
-
-export const roomAPI = {
-  getAll: () => api.get('/api/rooms'),
-  getById: (id) => api.get(`/api/rooms/${id}`),
-  create: (roomData) => api.post('/api/rooms', roomData),
-  update: (id, roomData) => api.put(`/api/rooms/${id}`, roomData),
-  delete: (id) => api.delete(`/api/rooms/${id}`),
-};
-
-export const assetAPI = {
-  getAll: (page = 1, pageSize = 10) =>
-    api.get(`/api/assets?page=${page}&pageSize=${pageSize}`),
-  getById: (id) => api.get(`/api/assets/${id}`),
-  getByRoom: (roomId) => api.get(`/api/assets/room/${roomId}`),
-  create: (assetData) => api.post('/api/assets', assetData),
-  update: (id, assetData) => api.put(`/api/assets/${id}`, assetData),
-  delete: (id) => api.delete(`/api/assets/${id}`),
-};
-```
-
-## Response Format
-
-All API responses follow this consistent format:
-
-### Success Response
-```json
-{
-  "type": "success",
-  "message": "Operation completed successfully",
-  "data": {
-    // Response data here
-  }
-}
-```
-
-### Error Response
-```json
-{
-  "type": "failed" | "error" | "validation_error",
-  "message": "Error description",
-  "errors": {
-    // Validation errors (if applicable)
-  }
-}
-```
-
-### Paginated Response
-```json
-{
-  "type": "success",
-  "message": "Assets retrieved successfully",
-  "data": [...],
-  "page": 1,
-  "pageSize": 10,
-  "totalCount": 100,
-  "totalPages": 10,
-  "hasPreviousPage": false,
-  "hasNextPage": true
-}
-```
+For complete API documentation, including:
+- Swagger UI setup and authentication
+- Testing endpoints with Swagger
+- Complete API endpoints reference
+- Client-side integration examples (JavaScript, React, Axios)
+- Response format documentation
+- API security best practices
+- Common API patterns and error handling
+
+See **[API/README.md](./API/README.md)** for detailed information.
 
 ## Security Best Practices
 
@@ -695,6 +320,284 @@ For issues, questions, or contributions:
 ## License
 
 [Your License Here]
+
+## Database Migration Guide
+
+### Overview
+
+Database migrations are version-controlled changes to your database schema. This project supports two migration strategies:
+
+1. **Entity Framework Core Migrations** - Code-first approach (recommended for new changes)
+2. **SQL Migrations** - Direct SQL scripts (used for existing migrations)
+
+### Quick Commands
+
+```bash
+# Create a new migration
+dotnet ef migrations add MigrationName --project API
+
+# Apply all pending migrations
+dotnet ef database update --project API
+
+# Rollback to previous migration
+dotnet ef database update PreviousMigrationName --project API
+
+# Generate SQL script without applying
+dotnet ef migrations script --project API
+
+# List all migrations
+dotnet ef migrations list --project API
+```
+
+### SQL Migration Files
+
+Located in `migrations/` directory:
+- `database_schema.sql` - Initial database schema
+- `001_drop_otp_fk_constraint.sql` - OTP foreign key constraint modification
+- `002_create_password_reset_tokens.sql` - Password reset functionality
+- `003_grant_permissions_password_reset_tokens.sql` - Permission configuration
+- `004_create_additional_tables.sql` - Additional tables if needed
+
+### Running SQL Migrations
+
+```bash
+export DATABASE_URL="postgresql://username:password@host:5432/database"
+
+# Apply schema
+psql $DATABASE_URL -f migrations/database_schema.sql
+psql $DATABASE_URL -f migrations/001_drop_otp_fk_constraint.sql
+psql $DATABASE_URL -f migrations/002_create_password_reset_tokens.sql
+psql $DATABASE_URL -f migrations/003_grant_permissions_password_reset_tokens.sql
+```
+
+### Migration Best Practices
+
+1. **Always backup before migrating**
+2. **Test in non-production first** (Local → Dev → Staging → Production)
+3. **Use transactions** for safe rollback capability
+4. **Make migrations idempotent** (safe to run multiple times)
+5. **Document breaking changes** clearly
+6. **Keep migrations version controlled**
+7. **Monitor migration execution**
+
+### Production Migration Checklist
+
+- [ ] Backup database before migration
+- [ ] Test migration in staging environment
+- [ ] Review generated SQL
+- [ ] Plan rollback procedure
+- [ ] Schedule during low-traffic window
+- [ ] Monitor database performance
+- [ ] Verify migration success
+- [ ] Keep backup for 7-30 days
+
+---
+
+## Supabase PostgreSQL Deployment
+
+### Why Supabase?
+
+| Feature | Supabase | Render PostgreSQL |
+|---------|----------|-------------------|
+| **Free Tier** | 500 MB, unlimited API requests | 90-day expiration |
+| **Connection Pooling** | Built-in PgBouncer | Not included in free |
+| **Backups** | Automatic (Pro+) | Manual |
+| **Database UI** | Full-featured SQL editor | Limited |
+| **Real-time** | Built-in capabilities | Not available |
+
+### Quick Start (15 Minutes)
+
+#### Step 1: Create Supabase Project
+
+1. Go to [supabase.com](https://supabase.com)
+2. Click "New Project"
+3. Fill in project details and choose region
+4. Wait 2-3 minutes for provisioning
+
+#### Step 2: Get Connection String
+
+```
+Dashboard → Settings → Database → Connection String
+```
+
+Two options:
+- **Pooled (Recommended for API)**: `...pooler.supabase.com:6543/...`
+- **Direct (For migrations)**: `...pooler.supabase.com:5432/...`
+
+#### Step 3: Run Migrations
+
+```bash
+export SUPABASE_DB_URL="postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:5432/postgres"
+
+# Create schema
+psql $SUPABASE_DB_URL -c "CREATE SCHEMA IF NOT EXISTS kosan;"
+
+# Apply migrations
+psql $SUPABASE_DB_URL -f migrations/database_schema.sql
+psql $SUPABASE_DB_URL -f migrations/001_drop_otp_fk_constraint.sql
+psql $SUPABASE_DB_URL -f migrations/002_create_password_reset_tokens.sql
+psql $SUPABASE_DB_URL -f migrations/003_grant_permissions_password_reset_tokens.sql
+```
+
+#### Step 4: Configure API
+
+Add these environment variables to your deployment:
+
+```env
+ConnectionStrings__AssetManagementConnection=postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require&application_name=AssetAPI
+Database__SchemaName=kosan
+Jwt__Secret=your-secure-jwt-secret-32-chars-minimum
+Email__SenderEmail=your-email@gmail.com
+```
+
+### Connection String Details
+
+**Pooled Connection (Production):**
+```
+postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+```
+
+**Features:**
+- Routed through PgBouncer connection pooler
+- 3000+ concurrent connections
+- Transaction pooling mode
+- Best for: Production APIs, high-traffic applications
+
+**Direct Connection (Migrations):**
+```
+postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
+```
+
+**Features:**
+- Direct PostgreSQL connection
+- Lower latency
+- Limited concurrent connections (60-500 depending on plan)
+- Best for: Database migrations, admin tasks
+
+### Connection String Parameters
+
+```
+?sslmode=require
+  • Enforce SSL/TLS encryption
+
+?application_name=AssetAPI
+  • Identify app in database logs
+
+&search_path=kosan,public
+  • Set default schema search path
+
+&connect_timeout=10
+  • Connection timeout (seconds)
+
+&statement_timeout=30000
+  • Query timeout (milliseconds)
+```
+
+### Cost Comparison
+
+| Plan | Price | Storage | Connections | Best For |
+|------|-------|---------|-------------|----------|
+| **Free** | $0/month | 500 MB | 60 direct, 3000 pooled | MVP, Development |
+| **Pro** | $25/month | 8 GB | 500 direct, 10000 pooled | Production, Small teams |
+| **Team** | $599/month | Unlimited | Unlimited | Enterprise |
+
+### Performance Optimization
+
+1. **Use Pooled Connections** in production (port 6543, not 5432)
+2. **Create Indexes** for common queries:
+   ```sql
+   CREATE INDEX idx_assets_user_id ON kosan.assets(user_id);
+   CREATE INDEX idx_rooms_user_id ON kosan.rooms(user_id);
+   ```
+3. **Enable Caching** for frequently accessed data
+4. **Use Pagination** for large datasets
+5. **Monitor Connection Usage** via dashboard
+
+### Connection Pooling Configuration
+
+```csharp
+// Program.cs
+services.AddDbContext<AssetManagementDbContext>(options =>
+    options.UseNpgsql(connectionString, npgsqlOptions =>
+    {
+        npgsqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(30));
+
+        npgsqlOptions.CommandTimeout(30);
+        npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "kosan");
+    })
+);
+```
+
+### Monitoring
+
+```
+Dashboard → Database → Database Health
+
+Monitor:
+• CPU usage
+• Memory usage
+• Connection count
+• Query performance
+```
+
+Check active connections:
+```sql
+SELECT count(*) FROM pg_stat_activity;
+```
+
+### Common Issues
+
+**"Too Many Connections"**
+- Switch to pooled connection (port 6543)
+- Reduce application pool size
+- Upgrade to Pro plan
+
+**Slow Queries**
+- Add missing indexes
+- Implement query pagination
+- Enable caching
+- Optimize N+1 queries
+
+**Connection Timeouts**
+- Increase timeout in connection string
+- Check firewall/network connectivity
+- Verify SSL configuration
+
+### Backup Strategy
+
+```bash
+# Manual backup
+pg_dump $SUPABASE_DB_URL > backup_$(date +%Y%m%d).sql
+
+# Compressed backup
+pg_dump $SUPABASE_DB_URL | gzip > backup_$(date +%Y%m%d).sql.gz
+
+# Restore backup
+psql $SUPABASE_DB_URL < backup_20231115.sql
+```
+
+### Security Best Practices
+
+1. **Never commit connection strings** - Use environment variables
+2. **Use separate databases** for dev/staging/production
+3. **Rotate passwords regularly**
+   ```
+   Dashboard → Settings → Database → Reset Database Password
+   ```
+4. **Enable SSL** (enforce in connection string)
+5. **Implement Row-Level Security** (RLS)
+6. **Backup regularly** (Pro plan or manual)
+
+### Resources
+
+- [Supabase Documentation](https://supabase.com/docs)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [Entity Framework Core Migrations](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/)
+- [Npgsql Documentation](https://www.npgsql.org/doc/)
+
+---
 
 ## Contributors
 

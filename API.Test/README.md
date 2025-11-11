@@ -69,28 +69,69 @@ Tests complete API endpoints end-to-end:
 
 ## 🚀 Running Tests
 
-### Run all tests:
-```bash
-dotnet test
+### Standard Workflow:
+
+#### Step 1: Run all tests (with TRX output)
+```powershell
+dotnet test --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
 ```
 
-### Run specific test class:
-```bash
-dotnet test --filter "FullyQualifiedName~PasswordHasherTests"
-dotnet test --filter "FullyQualifiedName~OtpServiceTests"
-dotnet test --filter "FullyQualifiedName~RegisterRepositoryTests"
-dotnet test --filter "FullyQualifiedName~UserControllerIntegrationTests"
+This command:
+- Generates TRX file: `TestResults/test-results.trx`
+- Generates coverage data: `TestResults/coverage.cobertura.xml`
+- Creates `TestResults` directory if it doesn't exist
+
+#### Step 2: Generate custom HTML report
+```powershell
+.\GenerateCustomTestReport.ps1
+```
+
+The custom report will be generated at: `TestResults/custom-test-report.html`
+
+**Note:** The `GenerateCustomTestReport.ps1` script automatically creates the `TestResults` directory if it doesn't exist.
+
+### Run specific test class (with results):
+```powershell
+dotnet test --filter "FullyQualifiedName~PasswordHasherTests" --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
+
+dotnet test --filter "FullyQualifiedName~OtpServiceTests" --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
+
+dotnet test --filter "FullyQualifiedName~RegisterRepositoryTests" --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
+
+dotnet test --filter "FullyQualifiedName~UserControllerIntegrationTests" --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
 ```
 
 ### Run with detailed output:
-```bash
-dotnet test --verbosity detailed
+```powershell
+dotnet test --verbosity detailed --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
 ```
 
 ### Run with code coverage:
-```bash
-dotnet test /p:CollectCoverage=true
+```powershell
+dotnet test --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
 ```
+
+## 📁 Test Results
+
+All test results are generated in the `TestResults/` directory:
+
+```
+API.Test/
+├── TestResults/
+│   ├── test-results-[timestamp].trx      # Test results XML (for each run)
+│   ├── custom-test-report.html           # Interactive custom HTML report
+│   └── coverage.cobertura.xml            # Code coverage data
+```
+
+### Viewing Results:
+
+1. **Custom HTML Report** (Recommended):
+   - Open `TestResults/custom-test-report.html` in your web browser
+   - Features: Interactive filtering (Passed/Failed/Skipped), test details, error messages
+
+2. **TRX Files** (Visual Studio):
+   - Open `.trx` files directly in Visual Studio
+   - View detailed test results, stack traces, and timings
 
 ## 📂 Test Helpers
 
@@ -106,6 +147,14 @@ Provides builder methods for creating test data:
 
 ### **CustomWebApplicationFactory** (`Integration/CustomWebApplicationFactory.cs`)
 Configures test environment for integration tests with in-memory database.
+
+### **GenerateCustomTestReport.ps1** (`GenerateCustomTestReport.ps1`)
+PowerShell script that transforms TRX test results into an interactive HTML report:
+- Parses TRX XML results
+- Converts test data to JavaScript
+- Injects data into TestReportTemplate.html
+- Automatically creates TestResults directory if needed
+- Generates: `TestResults/custom-test-report.html`
 
 ## 📊 Test Coverage
 

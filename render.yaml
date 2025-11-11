@@ -1,0 +1,219 @@
+# Render Blueprint Configuration for Asset Management API
+# This file defines the infrastructure needed to deploy the application on Render
+
+services:
+  # Main API Service
+  - type: web
+    name: assetmanagement-api
+    runtime: docker
+    plan: starter  # Change to 'standard' or 'pro' for production
+    region: oregon  # Choose region: oregon, frankfurt, singapore, ohio, virginia
+
+    # Repository configuration
+    repo: https://github.com/yourusername/AssetManagement-API  # Update with your repo URL
+    branch: development  # Deploy from development branch
+
+    # Docker configuration
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Build configuration
+    buildFilter:
+      paths:
+        - API/**
+        - migrations/**
+        - Dockerfile
+        - .dockerignore
+        - render.yaml
+
+    # Health check configuration
+    healthCheckPath: /api/asset-categories
+
+    # Auto-deploy configuration
+    autoDeploy: true  # Automatically deploy on git push
+
+    # Environment variables
+    envVars:
+      # ASP.NET Core Configuration
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+
+      - key: ASPNETCORE_URLS
+        value: http://+:80
+
+      # Database Configuration
+      - key: ConnectionStrings__AssetManagementConnection
+        fromDatabase:
+          name: assetmanagement-db
+          property: connectionString
+
+      - key: Database__SchemaName
+        value: kosan
+
+      # JWT Configuration (set these in Render dashboard as secrets)
+      - key: Jwt__Secret
+        generateValue: true  # Auto-generate a secure random value
+
+      - key: Jwt__Issuer
+        value: AssetManagementAPI
+
+      - key: Jwt__Audience
+        value: AssetManagementClient
+
+      - key: Jwt__ExpirationMinutes
+        value: 1440
+
+      # Email Configuration (SMTP)
+      - key: Email__SmtpHost
+        value: smtp.gmail.com
+
+      - key: Email__SmtpPort
+        value: 587
+
+      - key: Email__SenderName
+        value: Asset Management System
+
+      - key: Email__EnableSsl
+        value: true
+
+      # These should be set as secrets in Render dashboard
+      - key: Email__SenderEmail
+        sync: false  # Set manually in Render dashboard
+
+      - key: Email__Username
+        sync: false  # Set manually in Render dashboard
+
+      - key: Email__Password
+        sync: false  # Set manually in Render dashboard
+
+      # CORS Configuration
+      - key: Cors__AllowedOrigins
+        value: https://yourdomain.com,https://www.yourdomain.com  # Update with your frontend URLs
+
+      # Swagger Configuration
+      - key: Swagger__AuthEnabled
+        value: true  # Enable authentication for Swagger in production
+
+      - key: Swagger__Username
+        sync: false  # Set manually in Render dashboard
+
+      - key: Swagger__Password
+        sync: false  # Set manually in Render dashboard
+
+      # Password Hashing Configuration
+      - key: PasswordHashing__SaltSize
+        value: 16
+
+      - key: PasswordHashing__HashSize
+        value: 32
+
+      - key: PasswordHashing__Iterations
+        value: 10000
+
+      - key: PasswordHashing__HashAlgorithm
+        value: SHA256
+
+      # OTP Configuration
+      - key: Otp__CodeLength
+        value: 6
+
+      - key: Otp__ExpirationMinutes
+        value: 10
+
+      - key: Otp__MaxAttempts
+        value: 5
+
+      - key: Otp__PendingUserExpirationMinutes
+        value: 30
+
+      # Password Reset Configuration
+      - key: PasswordReset__TokenExpirationMinutes
+        value: 15
+
+      - key: PasswordReset__CodeLength
+        value: 6
+
+      # Validation Configuration
+      - key: Validation__Username__MinLength
+        value: 10
+
+      - key: Validation__Username__MaxLength
+        value: 50
+
+      - key: Validation__Password__MinLength
+        value: 8
+
+      - key: Validation__Password__MaxLength
+        value: 16
+
+      - key: Validation__Password__RequireUppercase
+        value: true
+
+      - key: Validation__Password__RequireLowercase
+        value: true
+
+      - key: Validation__Password__RequireDigit
+        value: true
+
+      - key: Validation__Password__RequireSpecialChar
+        value: true
+
+      # Logging Configuration
+      - key: Logging__LogLevel__Default
+        value: Information
+
+      - key: Logging__LogLevel__Microsoft.AspNetCore
+        value: Warning
+
+# Database Configuration
+databases:
+  - name: assetmanagement-db
+    databaseName: assetmanagement
+    user: assetmanagement_user
+    plan: starter  # Change to 'standard' or 'pro' for production
+    region: oregon  # Same region as the API service for low latency
+
+    # PostgreSQL Configuration
+    ipAllowList: []  # Empty list means accessible from anywhere (Render services included)
+
+    # Initial database setup (migrations run manually or via init script)
+    # Note: You'll need to run migrations manually after first deployment
+    # See DEPLOYMENT.md for migration instructions
+
+# Additional configuration notes:
+#
+# 1. Secret Management:
+#    - Set sensitive values (JWT secret, email credentials, Swagger credentials)
+#      manually in the Render dashboard under Environment Variables
+#    - Never commit secrets to git
+#
+# 2. Database Migrations:
+#    - After first deployment, run migrations using the Render Shell:
+#      $ psql $DATABASE_URL -f migrations/database_schema.sql
+#      $ psql $DATABASE_URL -f migrations/001_drop_otp_fk_constraint.sql
+#      $ psql $DATABASE_URL -f migrations/002_create_password_reset_tokens.sql
+#      $ psql $DATABASE_URL -f migrations/003_grant_permissions_password_reset_tokens.sql
+#      $ psql $DATABASE_URL -f migrations/004_create_additional_tables.sql
+#
+# 3. Custom Domain:
+#    - Add your custom domain in Render dashboard after deployment
+#    - Update CORS AllowedOrigins with your actual frontend URLs
+#
+# 4. Scaling:
+#    - Upgrade to 'standard' or 'pro' plan for production workloads
+#    - Consider adding Redis for caching if needed
+#    - Monitor performance and scale database independently
+#
+# 5. Monitoring:
+#    - Enable Render's built-in monitoring
+#    - Configure alerts for health check failures
+#    - Review logs regularly in Render dashboard
+#
+# 6. Backup:
+#    - Render automatically backs up PostgreSQL databases
+#    - Consider additional backup strategy for critical data
+#
+# 7. CI/CD Integration:
+#    - Auto-deploy is enabled and will deploy on push to 'development' branch
+#    - GitHub Actions CI must pass before deployment
+#    - See .github/workflows/ci.yml for CI configuration
