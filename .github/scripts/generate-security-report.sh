@@ -1,0 +1,156 @@
+#!/bin/bash
+# Generate security vulnerability scan report from template
+
+set -e
+
+OUTPUT_DIR="${1:-.}"
+SCAN_REPORT_FILE="${2:-security-report.txt}"
+
+# Ensure output directory exists
+mkdir -p "$OUTPUT_DIR"
+
+# Determine vulnerability status
+VULN_STATUS="No Vulnerabilities Found"
+if [ -f "$SCAN_REPORT_FILE" ] && grep -q "vulnerable" "$SCAN_REPORT_FILE"; then
+    VULN_STATUS="Vulnerabilities Found"
+fi
+
+CURRENT_TIMESTAMP=$(date)
+SCAN_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+
+# Create the report
+cat > "$OUTPUT_DIR/report.html" << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Vulnerability Scan Report</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f32013 0%, #c72c1f 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #d32f2f;
+            border-bottom: 3px solid #d32f2f;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #c72c1f;
+            margin-top: 25px;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .item {
+            padding: 15px;
+            background: #f5f5f5;
+            border-left: 4px solid #d32f2f;
+            border-radius: 4px;
+        }
+        .item strong {
+            display: block;
+            color: #d32f2f;
+            margin-bottom: 5px;
+        }
+        .details {
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        .details pre {
+            margin: 0;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .timestamp {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 20px;
+            text-align: right;
+        }
+        ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Security Vulnerability Scan Report</h1>
+        <h2>Vulnerability Scan Summary</h2>
+        <div class="summary">
+            <div class="item">
+                <strong>Scan Type</strong>
+                Package Vulnerability
+            </div>
+            <div class="item">
+                <strong>Framework</strong>
+                net8.0
+            </div>
+            <div class="item">
+                <strong>Status</strong>
+                {{VULN_STATUS}}
+            </div>
+            <div class="item">
+                <strong>Scan Date</strong>
+                {{SCAN_DATE}}
+            </div>
+        </div>
+        <h2>Scan Details</h2>
+        <div class="details">
+            <pre>{{SCAN_RESULTS}}</pre>
+        </div>
+        <h2>Recommendations</h2>
+        <ul>
+            <li>Review vulnerable packages regularly</li>
+            <li>Update dependencies to latest secure versions</li>
+            <li>Monitor security advisories for your dependencies</li>
+            <li>Use automated tools to detect vulnerabilities early</li>
+            <li>Include security scanning in your CI/CD pipeline</li>
+        </ul>
+        <div class="timestamp">Generated: {{CURRENT_TIMESTAMP}}</div>
+    </div>
+</body>
+</html>
+EOF
+
+# Replace placeholders with actual values
+SCAN_RESULTS=""
+if [ -f "$SCAN_REPORT_FILE" ]; then
+    SCAN_RESULTS=$(cat "$SCAN_REPORT_FILE" | sed 's/[&/\]/\\&/g')
+fi
+
+VULN_STATUS_ESCAPED=$(echo "$VULN_STATUS" | sed 's/[&/\]/\\&/g')
+CURRENT_TIMESTAMP_ESCAPED=$(echo "$CURRENT_TIMESTAMP" | sed 's/[&/\]/\\&/g')
+SCAN_DATE_ESCAPED=$(echo "$SCAN_DATE" | sed 's/[&/\]/\\&/g')
+
+sed -i "s/{{VULN_STATUS}}/$VULN_STATUS_ESCAPED/g" "$OUTPUT_DIR/report.html"
+sed -i "s/{{SCAN_DATE}}/$SCAN_DATE_ESCAPED/g" "$OUTPUT_DIR/report.html"
+sed -i "s/{{CURRENT_TIMESTAMP}}/$CURRENT_TIMESTAMP_ESCAPED/g" "$OUTPUT_DIR/report.html"
+sed -i "s/{{SCAN_RESULTS}}/$SCAN_RESULTS/g" "$OUTPUT_DIR/report.html"
+
+echo "Security report generated: $OUTPUT_DIR/report.html"
