@@ -18,6 +18,12 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
+# Grant permissions for workflow
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   # Job 1: Build and validate the application
   build:
