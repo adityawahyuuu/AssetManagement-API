@@ -9,48 +9,16 @@ on:
       - main
       - master
 
-# Cancel in-progress runs when a new commit is pushed
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
-env:
-  DOTNET_VERSION: '8.0.x'
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
-  DOTNET_CLI_TELEMETRY_OPTOUT: true
-
 permissions:
-  contents: read
-  checks: write
   pull-requests: write
 
 jobs:
-  # Skip if PR is in draft mode
-  check-pr-status:
-    name: Check PR Status
-    runs-on: ubuntu-latest
-
-    outputs:
-      should-run: ${{ steps.check.outputs.run }}
-
-    steps:
-      - name: Check if PR is draft
-        id: check
-        run: |
-          if [ "${{ github.event.pull_request.draft }}" == "true" ]; then
-            echo "PR is in draft mode - skipping validation"
-            echo "run=false" >> $GITHUB_OUTPUT
-          else
-            echo "PR is ready for review - running validation"
-            echo "run=true" >> $GITHUB_OUTPUT
-          fi
-
   # Validate PR title and description
   pr-metadata:
     name: Validate PR Metadata
     runs-on: ubuntu-latest
-    needs: check-pr-status
-    if: needs.check-pr-status.outputs.should-run == 'true'
+    # Skip if PR is in draft mode
+    if: ${{ !github.event.pull_request.draft }}
 
     steps:
       - name: Validate PR title
@@ -58,247 +26,37 @@ jobs:
           PR_TITLE="${{ github.event.pull_request.title }}"
 
           if [ -z "$PR_TITLE" ]; then
-            echo "ERROR: PR title is empty"
+            echo "❌ ERROR: PR title is empty"
             exit 1
           fi
 
           if [ ${#PR_TITLE} -lt 10 ]; then
-            echo "ERROR: PR title is too short (minimum 10 characters)"
+            echo "❌ ERROR: PR title is too short (minimum 10 characters)"
             exit 1
           fi
 
-          echo "SUCCESS: PR title is valid: $PR_TITLE"
+          echo "✅ PR title is valid"
 
       - name: Check PR description
         run: |
           PR_BODY="${{ github.event.pull_request.body }}"
 
           if [ -z "$PR_BODY" ] || [ "$PR_BODY" == "null" ]; then
-            echo "WARNING: PR description is empty - consider adding a description"
-            echo "A good PR description should include:" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ PR description is empty"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### PR Description Guidelines" >> $GITHUB_STEP_SUMMARY
+            echo "Consider adding a description with:" >> $GITHUB_STEP_SUMMARY
             echo "- What changes were made" >> $GITHUB_STEP_SUMMARY
             echo "- Why these changes were needed" >> $GITHUB_STEP_SUMMARY
             echo "- How to test the changes" >> $GITHUB_STEP_SUMMARY
           else
-            echo "SUCCESS: PR has a description"
+            echo "✅ PR has a description"
           fi
 
-      - name: Check for breaking changes label
+      - name: Summary
         run: |
-          echo "TIP: Add appropriate labels to your PR" >> $GITHUB_STEP_SUMMARY
-          echo "- 'breaking-change' for API breaking changes" >> $GITHUB_STEP_SUMMARY
-          echo "- 'bug' for bug fixes" >> $GITHUB_STEP_SUMMARY
-          echo "- 'enhancement' for new features" >> $GITHUB_STEP_SUMMARY
-
-  # Quick build and test validation
-  quick-validation:
-    name: Quick Build & Test
-    runs-on: ubuntu-latest
-    needs: check-pr-status
-    if: needs.check-pr-status.outputs.should-run == 'true'
-
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Run tests
-        run: |
-          dotnet test \
-            --configuration Release \
-            --no-build \
-            --logger "trx;LogFileName=test-results.trx" \
-            --logger "console;verbosity=detailed" \
-            --collect:"XPlat Code Coverage" \
-            --results-directory ./TestResults \
-            --settings API.Test/test.runsettings
-
-      - name: Comment PR with results
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const pull_number = context.payload.pull_request.number;
-
-            let message = '### PR Validation Results\n\n';
-
-            if ('${{ job.status }}' === 'success') {
-              message += 'SUCCESS: Build and tests passed successfully!\n\n';
-              message += '**Next Steps:**\n';
-              message += '- Review the code changes\n';
-              message += '- Wait for full CI pipeline to complete\n';
-              message += '- Merge when all checks pass\n';
-            } else {
-              message += 'FAILED: Build or tests failed\n\n';
-              message += '**Please:**\n';
-              message += '- Check the workflow logs for details\n';
-              message += '- Fix any failing tests\n';
-              message += '- Push fixes to update this PR\n';
-            }
-
-            github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: pull_number,
-              body: message
-            });
-
-  # Check for conflicts with base branch
-  conflict-check:
-    name: Check for Merge Conflicts
-    runs-on: ubuntu-latest
-    needs: check-pr-status
-    if: needs.check-pr-status.outputs.should-run == 'true'
-
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-
-      - name: Check for conflicts
-        run: |
-          git fetch origin ${{ github.event.pull_request.base.ref }}
-
-          if git merge-base --is-ancestor HEAD origin/${{ github.event.pull_request.base.ref }}; then
-            echo "SUCCESS: No conflicts detected"
-            echo "### No Merge Conflicts" >> $GITHUB_STEP_SUMMARY
-          else
-            # Try to merge to check for conflicts
-            git config user.name "github-actions"
-            git config user.email "github-actions@github.com"
-
-            if git merge --no-commit --no-ff origin/${{ github.event.pull_request.base.ref }}; then
-              echo "SUCCESS: Branch can be merged without conflicts"
-              echo "### No Merge Conflicts" >> $GITHUB_STEP_SUMMARY
-              git merge --abort
-            else
-              echo "WARNING: Merge conflicts detected - please resolve them"
-              echo "### Merge Conflicts Detected" >> $GITHUB_STEP_SUMMARY
-              echo "Please rebase or merge the base branch into your PR branch" >> $GITHUB_STEP_SUMMARY
-              git merge --abort
-            fi
-          fi
-
-  # Verify code changes quality
-  code-review-checks:
-    name: Automated Code Review
-    runs-on: ubuntu-latest
-    needs: check-pr-status
-    if: needs.check-pr-status.outputs.should-run == 'true'
-
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Check code formatting
-        run: |
-          dotnet format --verify-no-changes --verbosity diagnostic || echo "WARNING: Code formatting issues found"
-        continue-on-error: true
-
-      - name: Count changed files
-        id: changes
-        run: |
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | wc -l)
-          echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
-
-          echo "### Change Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "## PR Validation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Files Changed:** $CHANGED_FILES" >> $GITHUB_STEP_SUMMARY
-
-      - name: Check for large PRs
-        run: |
-          CHANGED_FILES=${{ steps.changes.outputs.changed_files }}
-
-          if [ $CHANGED_FILES -gt 50 ]; then
-            echo "WARNING: This PR changes $CHANGED_FILES files" >> $GITHUB_STEP_SUMMARY
-            echo "Consider splitting into smaller PRs for easier review" >> $GITHUB_STEP_SUMMARY
-          elif [ $CHANGED_FILES -gt 20 ]; then
-            echo "INFO: This PR changes $CHANGED_FILES files" >> $GITHUB_STEP_SUMMARY
-            echo "Moderate size - ensure changes are well organized" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "SUCCESS: PR size is reasonable ($CHANGED_FILES files)" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  # Summary of PR validation
-  pr-validation-summary:
-    name: PR Validation Summary
-    runs-on: ubuntu-latest
-    needs: [pr-metadata, quick-validation, conflict-check, code-review-checks]
-    if: always()
-
-    steps:
-      - name: Generate summary
-        run: |
-          echo "### PR Validation Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Check job statuses
-          METADATA="${{ needs.pr-metadata.result }}"
-          VALIDATION="${{ needs.quick-validation.result }}"
-          CONFLICTS="${{ needs.conflict-check.result }}"
-          CODE_REVIEW="${{ needs.code-review-checks.result }}"
-
-          echo "**Validation Results:**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$METADATA" == "success" ]; then
-            echo "- SUCCESS: PR metadata validated" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- FAILED: PR metadata check failed" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "$VALIDATION" == "success" ]; then
-            echo "- SUCCESS: Build and tests passed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- FAILED: Build or tests failed" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "$CONFLICTS" == "success" ]; then
-            echo "- SUCCESS: No merge conflicts" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- WARNING: Merge conflict check had issues" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "$CODE_REVIEW" == "success" ]; then
-            echo "- SUCCESS: Code review checks passed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- WARNING: Code review checks had issues" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Overall status
-          if [ "$METADATA" == "success" ] && [ "$VALIDATION" == "success" ]; then
-            echo "### PR is ready for review!" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "The full CI pipeline will run when this PR is ready to merge." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### PR needs attention" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Please address the issues above before requesting review." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "✅ Draft check: PR is not in draft mode" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Title validation: Passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Description check: Complete" >> $GITHUB_STEP_SUMMARY
