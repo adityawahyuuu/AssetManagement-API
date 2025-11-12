@@ -1,7 +1,13 @@
 name: Database Migration Validation
 
-# Trigger on pull requests that modify migration files
+# Trigger on push to all branches or pull requests that modify migration files
 on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'migrations/**'
+
   pull_request:
     branches:
       - development
