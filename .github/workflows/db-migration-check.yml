@@ -177,45 +177,34 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Create database schema
+      - name: Apply database migrations in sequence
         run: |
-          echo "Creating database schema..."
-          PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -c "CREATE SCHEMA IF NOT EXISTS kosan;"
-          echo "SUCCESS: Schema created"
+          echo "Applying migrations in sequence..."
 
-      - name: Apply initial schema
-        run: |
-          if [ -f "migrations/database_schema.sql" ]; then
-            echo "Applying initial database schema..."
-            PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -f migrations/database_schema.sql
-            echo "SUCCESS: Initial schema applied"
-          else
-            echo "WARNING: No initial schema file found (migrations/database_schema.sql)"
-          fi
+          MIGRATIONS=(
+            "migrations/001_create_role_database_schema.sql"
+            "migrations/002_create_user_table.sql"
+            "migrations/003_create_rooms_assets_table.sql"
+            "migrations/004_create_master_table.sql"
+          )
 
-      - name: Apply all migrations in order
-        run: |
-          echo "Applying migrations in order..."
+          for migration in "${MIGRATIONS[@]}"; do
+            if [ -f "$migration" ]; then
+              echo "Applying migration: $migration"
 
-          if [ -d "migrations" ]; then
-            # Sort migration files numerically
-            for file in $(ls migrations/[0-9]*.sql 2>/dev/null | sort -V); do
-              echo "Applying migration: $file"
-
-              # Apply migration
-              if PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -f "$file"; then
-                echo "SUCCESS: Successfully applied: $file"
+              if PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -f "$migration"; then
+                echo "SUCCESS: Successfully applied: $migration"
               else
-                echo "ERROR: Failed to apply: $file"
+                echo "ERROR: Failed to apply: $migration"
                 exit 1
               fi
-            done
+            else
+              echo "WARNING: Migration file not found: $migration"
+            fi
+          done
 
-            echo ""
-            echo "SUCCESS: All migrations applied successfully"
-          else
-            echo "WARNING: No migrations directory found"
-          fi
+          echo ""
+          echo "SUCCESS: All migrations applied successfully"
 
       - name: Verify database state
         run: |
