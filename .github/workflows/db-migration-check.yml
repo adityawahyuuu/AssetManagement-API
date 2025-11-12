@@ -181,29 +181,35 @@ jobs:
         run: |
           echo "Applying migrations in sequence..."
 
-          MIGRATIONS=(
-            "migrations/001_create_role_database_schema.sql"
-            "migrations/002_create_user_table.sql"
-            "migrations/003_create_rooms_assets_table.sql"
-            "migrations/004_create_master_table.sql"
-          )
+          if [ ! -d "migrations" ]; then
+            echo "WARNING: No migrations directory found"
+            exit 0
+          fi
 
-          for migration in "${MIGRATIONS[@]}"; do
-            if [ -f "$migration" ]; then
-              echo "Applying migration: $migration"
+          # Find all SQL files matching pattern NNN_*.sql and sort numerically
+          MIGRATION_COUNT=$(ls migrations/[0-9][0-9][0-9]_*.sql 2>/dev/null | wc -l)
 
-              if PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -f "$migration"; then
-                echo "SUCCESS: Successfully applied: $migration"
-              else
-                echo "ERROR: Failed to apply: $migration"
-                exit 1
-              fi
+          if [ $MIGRATION_COUNT -eq 0 ]; then
+            echo "WARNING: No migration files found matching pattern NNN_*.sql"
+            exit 0
+          fi
+
+          echo "Found $MIGRATION_COUNT migration file(s) to apply"
+          echo ""
+
+          # Sort migrations numerically and apply in sequence
+          for migration in $(ls migrations/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort -V); do
+            echo "Applying migration: $migration"
+
+            if PGPASSWORD=postgres psql -h localhost -U postgres -d assetmanagement_test -f "$migration"; then
+              echo "SUCCESS: Successfully applied: $migration"
+              echo ""
             else
-              echo "WARNING: Migration file not found: $migration"
+              echo "ERROR: Failed to apply: $migration"
+              exit 1
             fi
           done
 
-          echo ""
           echo "SUCCESS: All migrations applied successfully"
 
       - name: Verify database state
