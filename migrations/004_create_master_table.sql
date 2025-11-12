@@ -26,3 +26,4 @@ CREATE INDEX IF NOT EXISTS idx_asset_categories_name
     ON kosan.asset_categories USING btree
     (name COLLATE pg_catalog."default" ASC NULLS LAST)
     TABLESPACE pg_default;
+	
