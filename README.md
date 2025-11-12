@@ -104,223 +104,6 @@ The API will be available at:
 
 **Note**: The application is configured to use HTTPS by default for security.
 
-## Deploying to Render
-
-### Step 1: Prepare Your Database
-
-1. Create a PostgreSQL database on Render:
-   - Go to [Render Dashboard](https://dashboard.render.com/)
-   - Click "New +" → "PostgreSQL"
-   - Name your database (e.g., `asset-management-db`)
-   - Select a region close to your users
-   - Click "Create Database"
-   - Copy the **Internal Database URL** (starts with `postgresql://`)
-
-### Step 2: Create Web Service on Render
-
-1. Click "New +" → "Web Service"
-2. Connect your GitHub repository
-3. Configure the service:
-   - **Name**: `asset-management-api` (or your preferred name)
-   - **Region**: Same as your database
-   - **Branch**: `main` (or your deployment branch)
-   - **Root Directory**: `API`
-   - **Runtime**: `.NET`
-   - **Build Command**: `dotnet publish -c Release -o out`
-   - **Start Command**: `cd out && dotnet API.dll`
-
-### Step 3: Configure Environment Variables
-
-Add the following environment variables in Render:
-
-| Variable Name | Description | Example Value |
-|--------------|-------------|---------------|
-| `ASPNETCORE_ENVIRONMENT` | Application environment | `Production` |
-| `ConnectionStrings__AssetManagementConnection` | PostgreSQL connection string | `postgresql://user:pass@host/db` |
-| `Jwt__Secret` | JWT signing secret (min 32 chars) | `YourSecureRandomString32CharsOrMore` |
-| `Jwt__Issuer` | JWT issuer name | `AssetManagementAPI` |
-| `Jwt__Audience` | JWT audience | `AssetManagementClient` |
-| `Email__SenderEmail` | SMTP sender email | `your-email@gmail.com` |
-| `Email__Username` | SMTP username | `your-email@gmail.com` |
-| `Email__Password` | SMTP password/app password | `your-app-password` |
-| `Cors__AllowedOrigins` | Allowed frontend URLs | `https://your-frontend.com,https://www.your-frontend.com` |
-
-**Important Notes:**
-- Use double underscores (`__`) to represent nested configuration keys
-- The database connection string should be the Internal Database URL from Step 1
-- For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833)
-- Add all your frontend URLs to CORS allowed origins, separated by commas
-- Keep your JWT secret secure and never commit it to version control
-
-### Step 4: Deploy
-
-1. Click "Create Web Service"
-2. Render will automatically build and deploy your application
-3. Wait for the deployment to complete (5-10 minutes)
-4. Your API will be available at `https://your-service-name.onrender.com`
-
-**HTTPS Configuration:**
-- ✅ Render automatically provides free SSL/TLS certificates for all web services
-- ✅ Your API is automatically accessible via HTTPS
-- ✅ The application is configured with forwarded headers middleware to properly handle HTTPS behind Render's reverse proxy
-- ✅ HTTP requests are automatically redirected to HTTPS
-- ✅ No additional HTTPS configuration needed
-
-### Step 5: Initialize Database
-
-After first deployment, run migrations:
-
-1. Go to your web service in Render
-2. Click "Shell" tab
-3. Run:
-   ```bash
-   cd out
-   dotnet ef database update --project /path/to/API.csproj
-   ```
-
-Alternatively, use your local machine with the production database connection string:
-
-```bash
-dotnet ef database update --connection "your-production-connection-string"
-```
-
-## Environment Variables Reference
-
-### Required Variables
-
-- **ConnectionStrings__AssetManagementConnection**: PostgreSQL connection string
-- **Jwt__Secret**: Secret key for JWT token signing (minimum 32 characters)
-- **Email__SenderEmail**: Email address for sending notifications
-- **Email__Username**: SMTP username
-- **Email__Password**: SMTP password
-- **Cors__AllowedOrigins**: Comma-separated list of allowed frontend URLs
-
-### Optional Variables
-
-- **Jwt__Issuer**: JWT issuer (default: `AssetManagementAPI`)
-- **Jwt__Audience**: JWT audience (default: `AssetManagementClient`)
-- **Jwt__ExpirationMinutes**: Token expiration time (default: `1440` = 24 hours)
-- **Email__SmtpHost**: SMTP server (default: `smtp.gmail.com`)
-- **Email__SmtpPort**: SMTP port (default: `587`)
-- **Email__SenderName**: Sender name (default: `Asset Management System`)
-- **Swagger__Username**: Swagger UI username (default: `admin`)
-- **Swagger__Password**: Swagger UI password (default: `admin123`)
-- **Swagger__AuthEnabled**: Enable Swagger UI basic auth (default: `true` in production, `false` in development)
-
-## API Documentation
-
-For complete API documentation, including:
-- Swagger UI setup and authentication
-- Testing endpoints with Swagger
-- Complete API endpoints reference
-- Client-side integration examples (JavaScript, React, Axios)
-- Response format documentation
-- API security best practices
-- Common API patterns and error handling
-
-See **[API/README.md](./API/README.md)** for detailed information.
-
-## Security Best Practices
-
-1. **Use .env file for local development secrets**
-   - Never commit `.env` to version control (already in `.gitignore`)
-   - Use `.env.example` as a template for team members
-   - Store database passwords, JWT secrets, and email credentials in `.env`
-
-2. **Never expose sensitive environment variables** in your frontend code
-
-3. **Store JWT tokens securely** (localStorage, sessionStorage, or httpOnly cookies)
-
-4. **Always use HTTPS** in production
-
-5. **Implement token refresh** logic for better security
-
-6. **Handle token expiration** gracefully on the client side
-
-7. **Validate CORS origins** carefully in production
-
-8. **Use environment-specific configurations**:
-   - Development: `.env` file (not committed)
-   - Production: Environment variables on Render
-
-9. **Enable rate limiting** if needed (consider Render's built-in features)
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Database Connection Errors**
-   - Verify the connection string format
-   - Ensure the database is running and accessible
-   - Check network connectivity between services
-
-2. **CORS Errors**
-   - Add your frontend URL to `Cors__AllowedOrigins`
-   - Ensure the URL format matches exactly (including protocol and port)
-   - Check browser console for specific CORS error messages
-
-3. **JWT Authentication Failures**
-   - Verify the JWT secret is at least 32 characters
-   - Ensure the token is sent with the `Bearer` prefix
-   - Check token expiration time
-   - Verify the token is being sent in the Authorization header
-
-4. **Email Not Sending**
-   - For Gmail, use an App Password, not your regular password
-   - Enable "Less secure app access" or use OAuth2
-   - Check SMTP settings and credentials
-   - Verify email service is not blocked by firewall
-
-5. **Migration Issues**
-   - Ensure database connection is correct
-   - Check if migrations folder exists
-   - Run migrations manually if needed
-   - Verify Entity Framework tools are installed
-
-## Development Tools
-
-### Running Tests
-
-```bash
-cd API.Test
-dotnet test
-```
-
-### Database Migrations
-
-Create a new migration:
-```bash
-dotnet ef migrations add MigrationName
-```
-
-Apply migrations:
-```bash
-dotnet ef database update
-```
-
-Rollback migration:
-```bash
-dotnet ef database update PreviousMigrationName
-```
-
-### Code Formatting
-
-```bash
-dotnet format
-```
-
-## Support
-
-For issues, questions, or contributions:
-
-- **GitHub Issues**: [Create an issue](https://github.com/adityawahyuuu/AssetManagement-API/issues)
-- **Documentation**: Check this README and Swagger documentation
-- **Email**: Contact your system administrator
-
-## License
-
-[Your License Here]
-
 ## Database Migration Guide
 
 ### Overview
@@ -358,38 +141,111 @@ Located in `migrations/` directory:
 - `003_grant_permissions_password_reset_tokens.sql` - Permission configuration
 - `004_create_additional_tables.sql` - Additional tables if needed
 
-### Running SQL Migrations
-
-```bash
-export DATABASE_URL="postgresql://username:password@host:5432/database"
-
-# Apply schema
-psql $DATABASE_URL -f migrations/database_schema.sql
-psql $DATABASE_URL -f migrations/001_drop_otp_fk_constraint.sql
-psql $DATABASE_URL -f migrations/002_create_password_reset_tokens.sql
-psql $DATABASE_URL -f migrations/003_grant_permissions_password_reset_tokens.sql
-```
-
 ### Migration Best Practices
 
-1. **Always backup before migrating**
-2. **Test in non-production first** (Local → Dev → Staging → Production)
-3. **Use transactions** for safe rollback capability
-4. **Make migrations idempotent** (safe to run multiple times)
-5. **Document breaking changes** clearly
-6. **Keep migrations version controlled**
-7. **Monitor migration execution**
+1. **Always backup** your database before running migrations
+2. **Test migrations** in a development environment first
+3. **Review the SQL** before executing
+4. **Keep a log** of which migrations have been applied
+5. **Never modify** migration files after they've been applied
 
-### Production Migration Checklist
+## Deploying to Render (API Only)
 
-- [ ] Backup database before migration
-- [ ] Test migration in staging environment
-- [ ] Review generated SQL
-- [ ] Plan rollback procedure
-- [ ] Schedule during low-traffic window
-- [ ] Monitor database performance
-- [ ] Verify migration success
-- [ ] Keep backup for 7-30 days
+### Step 1: Create Web Service on Render
+
+1. Go to [Render Dashboard](https://dashboard.render.com/)
+2. Click "New +" → "Web Service"
+3. Connect your GitHub repository
+4. Configure the service:
+   - **Name**: `asset-management-api`
+   - **Region**: Same as your database
+   - **Branch**: `main` (or your deployment branch)
+   - **Root Directory**: `API`
+   - **Runtime**: `.NET`
+   - **Build Command**: `dotnet publish -c Release -o out`
+   - **Start Command**: `cd out && dotnet API.dll`
+
+### Step 2: Configure Environment Variables
+
+Add the following environment variables in Render Dashboard:
+
+| Variable Name | Description | Example Value |
+|--------------|-------------|---------------|
+| `ASPNETCORE_ENVIRONMENT` | Application environment | `Production` |
+| `ConnectionStrings__AssetManagementConnection` | PostgreSQL connection string | `postgresql://user:pass@host/db` |
+| `Jwt__Secret` | JWT signing secret (min 32 chars) | `YourSecureRandomString32CharsOrMore` |
+| `Jwt__Issuer` | JWT issuer name | `AssetManagementAPI` |
+| `Jwt__Audience` | JWT audience | `AssetManagementClient` |
+| `Email__SenderEmail` | SMTP sender email | `your-email@gmail.com` |
+| `Email__Username` | SMTP username | `your-email@gmail.com` |
+| `Email__Password` | SMTP password/app password | `your-app-password` |
+| `Cors__AllowedOrigins` | Allowed frontend URLs | `https://your-frontend.com,https://www.your-frontend.com` |
+
+**Important Notes:**
+- Use double underscores (`__`) to represent nested configuration keys
+- For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833)
+- Add all your frontend URLs to CORS allowed origins, separated by commas
+- Keep your JWT secret secure and never commit it to version control
+
+### Step 3: Deploy
+
+1. Click "Create Web Service"
+2. Render will automatically build and deploy your application
+3. Wait for deployment to complete (5-10 minutes)
+4. Your API will be available at `https://your-service-name.onrender.com`
+
+**HTTPS Configuration:**
+- Render automatically provides free SSL/TLS certificates for all web services
+- Your API is automatically accessible via HTTPS
+- The application is configured with forwarded headers middleware to handle HTTPS
+- HTTP requests are automatically redirected to HTTPS
+- No additional HTTPS configuration needed
+
+### Step 4: Initialize Database
+
+After first deployment, run migrations from your local machine with production database connection string:
+
+```bash
+dotnet ef database update --connection "your-production-connection-string" --project API
+```
+
+## Environment Variables Reference
+
+Reference the configuration keys from `API/appsettings.Production.json`:
+
+### Required Variables
+
+- **ConnectionStrings__AssetManagementConnection**: PostgreSQL connection string
+- **Jwt__Secret**: Secret key for JWT token signing (minimum 32 characters)
+- **Email__SenderEmail**: Email address for sending notifications
+- **Email__Username**: SMTP username
+- **Email__Password**: SMTP password
+- **Cors__AllowedOrigins**: Comma-separated list of allowed frontend URLs
+
+### Optional Variables
+
+- **Jwt__Issuer**: JWT issuer (default: `AssetManagementAPI`)
+- **Jwt__Audience**: JWT audience (default: `AssetManagementClient`)
+- **Jwt__ExpirationMinutes**: Token expiration time (default: `1440`)
+- **Email__SmtpHost**: SMTP server (default: `smtp.gmail.com`)
+- **Email__SmtpPort**: SMTP port (default: `587`)
+- **Email__SenderName**: Sender name (default: `Asset Management System`)
+- **Swagger__Username**: Swagger UI username
+- **Swagger__Password**: Swagger UI password
+- **Swagger__AuthEnabled**: Enable Swagger UI basic auth (default: `true` in production)
+
+## API Documentation
+
+For complete API documentation, including:
+- Swagger UI setup and authentication
+- Testing endpoints with Swagger
+- Complete API endpoints reference
+- Client-side integration examples (JavaScript, React, Axios)
+- Response format documentation
+- API security best practices
+- Common API patterns and error handling
+
+See **[API/README.md](./API/README.md)** for detailed information.
 
 ---
 
@@ -439,16 +295,23 @@ psql $SUPABASE_DB_URL -f migrations/002_create_password_reset_tokens.sql
 psql $SUPABASE_DB_URL -f migrations/003_grant_permissions_password_reset_tokens.sql
 ```
 
-#### Step 4: Configure API
+#### Step 4: Deploy API to Render
 
-Add these environment variables to your deployment:
+Reference the "Deploying to Render (API Only)" section above. Use the following environment variables:
 
 ```env
 ConnectionStrings__AssetManagementConnection=postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require&application_name=AssetAPI
 Database__SchemaName=kosan
 Jwt__Secret=your-secure-jwt-secret-32-chars-minimum
+Jwt__Issuer=AssetManagementAPI
+Jwt__Audience=AssetManagementClient
 Email__SenderEmail=your-email@gmail.com
+Email__Username=your-email@gmail.com
+Email__Password=your-app-password
+Cors__AllowedOrigins=https://your-frontend.com,https://www.your-frontend.com
 ```
+
+Set these in your Render Web Service environment variables (see Deploying to Render section).
 
 ### Connection String Details
 
@@ -604,5 +467,3 @@ psql $SUPABASE_DB_URL < backup_20231115.sql
 - Aditya Wahyu ([@adityawahyuuu](https://github.com/adityawahyuuu))
 
 ---
-
-**Happy Coding!** 🚀

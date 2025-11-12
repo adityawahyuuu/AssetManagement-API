@@ -1,84 +1,35 @@
 # Database Migrations
 
-This directory contains SQL migration scripts for the Asset Management API database.
+This directory contains SQL migration scripts for the Asset Management API database schema and Entity Framework Core migrations.
 
-## Migration 001: Drop OTP Foreign Key Constraint
+## SQL Migration Files
 
-**File:** `001_drop_otp_fk_constraint.sql`
+- `001_create_role_database_schema.sql` - Create role and kosan schema
+- `002_create_user_table.sql` - Create user_logins table
+- `003_create_rooms_assets_table.sql` - Create rooms and assets tables
+- `004_create_master_table.sql` - Create master configuration tables
 
-**Purpose:** Remove the foreign key constraint on `otp_codes.email` that referenced `pending_users.email`. This constraint prevented the password reset feature from working because it only allowed OTP codes for emails in the `pending_users` table, not the `user_logins` table.
+## Applying Migrations
 
-**Changes:**
-- Drops `fk_otp_email` constraint from `kosan.otp_codes` table
-- Allows OTP codes for both user registration and password reset
-- Maintains data integrity at the application level
-
-### How to Execute
-
-#### Option 1: Using psql Command Line
-
+**Using Entity Framework Core (Recommended):**
 ```bash
-# Connect to your database
-psql -h localhost -U your_username -d your_database
-
-# Execute the migration
-\i migrations/001_drop_otp_fk_constraint.sql
+dotnet ef database update --project API
 ```
 
-#### Option 2: Using pgAdmin
-
-1. Open pgAdmin and connect to your database
-2. Right-click on your database → Query Tool
-3. Open the file `migrations/001_drop_otp_fk_constraint.sql`
-4. Click Execute (F5)
-5. Verify the success message appears
-
-#### Option 3: Using Database Connection String
-
+**Using SQL Scripts Directly:**
 ```bash
-psql postgresql://username:password@localhost:5432/database_name -f migrations/001_drop_otp_fk_constraint.sql
+export DB_URL="postgresql://user:pass@host:5432/database"
+psql $DB_URL -f migrations/001_create_role_database_schema.sql
+psql $DB_URL -f migrations/002_create_user_table.sql
+psql $DB_URL -f migrations/003_create_rooms_assets_table.sql
+psql $DB_URL -f migrations/004_create_master_table.sql
 ```
 
-### Verification
+## GitHub Actions Validation
 
-After running the migration, verify the constraint was removed:
-
-```sql
-SELECT constraint_name, table_name
-FROM information_schema.table_constraints
-WHERE constraint_name = 'fk_otp_email'
-AND table_schema = 'kosan';
-```
-
-**Expected result:** No rows returned (constraint does not exist)
-
-### Rollback (if needed)
-
-If you need to restore the constraint (not recommended):
-
-```sql
-ALTER TABLE kosan.otp_codes
-ADD CONSTRAINT fk_otp_email
-FOREIGN KEY (email) REFERENCES kosan.pending_users(email)
-ON DELETE CASCADE;
-```
-
-**Note:** This will prevent the forgot-password feature from working!
-
----
-
-## Migration Best Practices
-
-1. **Always backup** your database before running migrations
-2. **Test migrations** in a development environment first
-3. **Review the SQL** before executing
-4. **Keep a log** of which migrations have been applied
-5. **Never modify** migration files after they've been applied
-
----
-
-## Migration Log
-
-| Migration | Applied Date | Applied By | Notes |
-|-----------|--------------|------------|-------|
-| 001_drop_otp_fk_constraint.sql | YYYY-MM-DD | [Your Name] | Initial migration for password reset feature |
+SQL migrations are automatically validated on pull requests via `.github/workflows/db-migration-check.yml`:
+- File naming convention validation (NNN_description.sql)
+- SQL syntax checking
+- Duplicate migration number detection
+- Automated testing on PostgreSQL 16
+- Breaking change analysis
