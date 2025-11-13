@@ -1,3 +1,16 @@
+-- Sequence: kosan.asset_categories_id_seq
+
+-- DROP SEQUENCE IF EXISTS kosan.asset_categories_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS kosan.asset_categories_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE kosan.asset_categories_id_seq OWNER to developer;
+
 -- Table: kosan.asset_categories
 
 -- DROP TABLE IF EXISTS kosan.asset_categories;

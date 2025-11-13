@@ -1,3 +1,16 @@
+-- Sequence: kosan.users_userid_seq
+
+-- DROP SEQUENCE IF EXISTS kosan.users_userid_seq;
+
+CREATE SEQUENCE IF NOT EXISTS kosan.users_userid_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE kosan.users_userid_seq OWNER to developer;
+
 -- Table: kosan.user_login
 
 -- DROP TABLE IF EXISTS kosan.user_login;
@@ -31,6 +44,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_user_email
 
 
 
+-- Sequence: kosan.pending_users_id_seq
+
+-- DROP SEQUENCE IF EXISTS kosan.pending_users_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS kosan.pending_users_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE kosan.pending_users_id_seq OWNER to developer;
+
 -- Table: kosan.pending_users
 
 -- DROP TABLE IF EXISTS kosan.pending_users;
@@ -54,6 +80,19 @@ ALTER TABLE IF EXISTS kosan.pending_users
 	
 
 
+
+-- Sequence: kosan.otp_codes_id_seq
+
+-- DROP SEQUENCE IF EXISTS kosan.otp_codes_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS kosan.otp_codes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE kosan.otp_codes_id_seq OWNER to developer;
 
 -- Table: kosan.otp_codes
 
@@ -83,6 +122,19 @@ ALTER TABLE IF EXISTS kosan.otp_codes
 
 
 
+
+-- Sequence: kosan.password_reset_tokens_id_seq
+
+-- DROP SEQUENCE IF EXISTS kosan.password_reset_tokens_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS kosan.password_reset_tokens_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE kosan.password_reset_tokens_id_seq OWNER to developer;
 
 -- Table: kosan.password_reset_tokens
 
@@ -116,6 +168,7 @@ CREATE INDEX IF NOT EXISTS idx_password_reset_email
     ON kosan.password_reset_tokens USING btree
     (email COLLATE pg_catalog."default" ASC NULLS LAST)
     TABLESPACE pg_default;
+
 -- Index: idx_password_reset_token
 
 -- DROP INDEX IF EXISTS kosan.idx_password_reset_token;

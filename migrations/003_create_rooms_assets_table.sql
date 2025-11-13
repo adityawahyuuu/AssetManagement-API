@@ -1,3 +1,16 @@
+-- Sequence: kosan.rooms_id_seq
+
+-- DROP SEQUENCE IF EXISTS kosan.rooms_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS kosan.rooms_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE kosan.rooms_id_seq OWNER to developer;
+
 -- Table: kosan.rooms
 
 -- DROP TABLE IF EXISTS kosan.rooms;
@@ -51,6 +64,19 @@ CREATE INDEX IF NOT EXISTS idx_rooms_user_id
 
 
 
+
+-- Sequence: kosan.assets_id_seq
+
+-- DROP SEQUENCE IF EXISTS kosan.assets_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS kosan.assets_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE kosan.assets_id_seq OWNER to developer;
 
 -- Table: kosan.assets
 
