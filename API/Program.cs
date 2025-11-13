@@ -1,10 +1,10 @@
 using API.Configuration;
 using API.Data;
 using API.Middlewares;
-using API.Repositories.Register;
-using API.Repositories.Room;
 using API.Repositories.Asset;
 using API.Repositories.AssetCategory;
+using API.Repositories.Register;
+using API.Repositories.Room;
 using API.Services.Email;
 using API.Services.Jwt;
 using API.Services.Otp;
@@ -15,9 +15,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using System.Security.Claims;
 using System.Net;
+using System.Security.Claims;
+using System.Text;
 
 namespace API
 {

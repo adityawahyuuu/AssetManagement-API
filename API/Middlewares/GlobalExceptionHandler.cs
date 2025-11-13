@@ -1,7 +1,7 @@
-﻿using System.Net;
-using System.Text.Json;
-using API.Constants;
+﻿using API.Constants;
 using FluentValidation;
+using System.Net;
+using System.Text.Json;
 
 namespace API.Middlewares
 {
