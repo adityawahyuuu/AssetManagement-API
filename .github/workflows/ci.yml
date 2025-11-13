@@ -148,12 +148,12 @@ jobs:
       - name: Format check
         run: |
           dotnet format --verify-no-changes --verbosity diagnostic
-        continue-on-error: true
+        continue-on-error: false
 
       - name: Build for analysis
         run: |
           dotnet build --configuration Release --no-restore /p:TreatWarningsAsErrors=false
-        continue-on-error: true
+        continue-on-error: false
 
       - name: Generate code quality report
         run: |
