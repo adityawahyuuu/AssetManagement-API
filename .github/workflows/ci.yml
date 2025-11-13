@@ -145,6 +145,26 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
+      - name: Normalize line endings to CRLF
+        run: |
+          echo "Converting files to CRLF line endings..."
+          python3 << 'EOF'
+          import os
+          import glob
+
+          files = glob.glob('**/*.cs', recursive=True) + glob.glob('**/*.csproj', recursive=True)
+          for file_path in files:
+              if os.path.isfile(file_path):
+                  with open(file_path, 'rb') as f:
+                      content = f.read()
+                  # Convert LF to CRLF
+                  content = content.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')
+                  with open(file_path, 'wb') as f:
+                      f.write(content)
+          print(f"Converted {len(files)} files to CRLF")
+          EOF
+          echo "Line endings normalized to CRLF"
+
       - name: Format check
         run: |
           dotnet format --verify-no-changes --verbosity diagnostic
