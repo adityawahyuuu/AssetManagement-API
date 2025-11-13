@@ -234,7 +234,7 @@ jobs:
       - name: Test migration rollback (if applicable)
         run: |
           echo "Testing migration rollback capability..."
-          echo "NOTE: Manual rollback procedures should be documented in DEPLOYMENT.md"
+          echo "NOTE: Manual rollback procedures should be documented in README.md"
 
       - name: Add test summary
         if: always()
@@ -332,7 +332,7 @@ jobs:
           if [ "${{ needs.validate-migration-files.result }}" != "success" ]; then
             echo "### Database Migration Validation FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "❌ **Migration file validation failed**" >> $GITHUB_STEP_SUMMARY
+            echo "**Migration file validation failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Check the 'Validate Migration Files' job for details." >> $GITHUB_STEP_SUMMARY
             exit 1
@@ -343,7 +343,7 @@ jobs:
           if [ "${{ needs.test-migrations.result }}" != "success" ]; then
             echo "### Database Migration Validation FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "❌ **Migration testing on PostgreSQL failed**" >> $GITHUB_STEP_SUMMARY
+            echo "**Migration testing on PostgreSQL failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Check the 'Test Migrations on PostgreSQL' job for details." >> $GITHUB_STEP_SUMMARY
             exit 1
@@ -354,7 +354,7 @@ jobs:
           if [ "${{ needs.check-breaking-changes.result }}" != "success" ]; then
             echo "### Database Migration Validation FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ **Breaking changes detected**" >> $GITHUB_STEP_SUMMARY
+            echo "**Breaking changes detected**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Check the 'Check for Breaking Changes' job for details." >> $GITHUB_STEP_SUMMARY
             exit 1
@@ -362,11 +362,11 @@ jobs:
 
       - name: All checks passed - Summary
         run: |
-          echo "### Database Migration Validation Complete ✅" >> $GITHUB_STEP_SUMMARY
+          echo "### Database Migration Validation Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All migration validation checks passed:" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Migration file format validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Migrations tested on PostgreSQL 16" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Breaking changes analyzed" >> $GITHUB_STEP_SUMMARY
+          echo "- Migration file format validated" >> $GITHUB_STEP_SUMMARY
+          echo "- Migrations tested on PostgreSQL 16" >> $GITHUB_STEP_SUMMARY
+          echo "- Breaking changes analyzed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Migrations are ready to be applied to production!" >> $GITHUB_STEP_SUMMARY
