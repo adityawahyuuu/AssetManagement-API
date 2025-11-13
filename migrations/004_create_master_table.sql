@@ -39,3 +39,13 @@ CREATE INDEX IF NOT EXISTS idx_asset_categories_name
     ON kosan.asset_categories USING btree
     (name COLLATE pg_catalog."default" ASC NULLS LAST)
     TABLESPACE pg_default;
+
+-- Insert default asset categories
+INSERT INTO kosan.asset_categories (name, description)
+VALUES
+    ('tempat_tidur', 'Furniture for sleeping - beds, mattresses, pillows'),
+    ('meja', 'Tables and desks - study tables, dining tables, work desks'),
+    ('lemari', 'Storage furniture - wardrobes, cabinets, shelves'),
+    ('kursi', 'Chairs and seating - office chairs, dining chairs, stools'),
+    ('lainnya', 'Other assets and miscellaneous items')
+ON CONFLICT (name) DO NOTHING;
