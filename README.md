@@ -134,12 +134,13 @@ dotnet ef migrations list --project API
 
 ### SQL Migration Files
 
-Located in `migrations/` directory:
-- `database_schema.sql` - Initial database schema
-- `001_drop_otp_fk_constraint.sql` - OTP foreign key constraint modification
-- `002_create_password_reset_tokens.sql` - Password reset functionality
-- `003_grant_permissions_password_reset_tokens.sql` - Permission configuration
-- `004_create_additional_tables.sql` - Additional tables if needed
+Located in `migrations/` directory. Apply in order:
+- `001_create_role_database_schema.sql` - Create `developer` role, `asset_management` database, and `kosan` schema
+- `002_create_user_table.sql` - Create user authentication tables (user_login, pending_users, otp_codes, password_reset_tokens)
+- `003_create_rooms_assets_table.sql` - Create room and asset management tables
+- `004_create_master_table.sql` - Create asset categories and master data tables
+
+**All migrations use the `kosan` schema and must be applied in numerical order.**
 
 ### Migration Best Practices
 
@@ -184,40 +185,55 @@ See **[API/README.md](./API/README.md)** for detailed information.
 
 1. Go to [supabase.com](https://supabase.com)
 2. Click "New Project"
-3. Fill in project details and choose region
+3. Fill in project details:
+   - **Project Name**: `AssetManagement`
+   - Choose your preferred region
 4. Wait 2-3 minutes for provisioning
 
-##### Step 2: Get Connection String
+##### Step 2: Configure Data API and Get Connection String
 
-```
-Dashboard → Settings → Database → Connection String
-```
+**A. Enable Data API with Kosan Schema**
+
+1. Go to `Dashboard → Project: AssetManagement → API`
+2. Click "Data API Settings"
+3. Enable "Use dedicated API schema for Data API"
+4. Select **Schema**: `kosan`
+5. Save settings
+
+**B. Get Connection String**
+
+Navigate to: `Dashboard → Settings → Database → Connection String`
 
 Two options:
-- **Pooled (Recommended for API)**: `...pooler.supabase.com:6543/...`
-- **Direct (For migrations)**: `...pooler.supabase.com:5432/...`
+- **Pooled (Recommended for API)**: `postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres`
+- **Direct (For migrations)**: `postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres`
+
+Both connection strings use the default `public` schema. The `kosan` schema is configured separately for Data API access.
 
 ##### Step 3: Run Migrations
 
 ```bash
-export SUPABASE_DB_URL="postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:5432/postgres"
+export SUPABASE_DB_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres"
 
-# Create schema
-psql $SUPABASE_DB_URL -c "CREATE SCHEMA IF NOT EXISTS kosan;"
-
-# Apply migrations
-psql $SUPABASE_DB_URL -f migrations/database_schema.sql
-psql $SUPABASE_DB_URL -f migrations/001_drop_otp_fk_constraint.sql
-psql $SUPABASE_DB_URL -f migrations/002_create_password_reset_tokens.sql
-psql $SUPABASE_DB_URL -f migrations/003_grant_permissions_password_reset_tokens.sql
+# Apply migrations in order (use Direct connection for migrations, port 5432)
+psql $SUPABASE_DB_URL -f migrations/001_create_role_database_schema.sql
+psql $SUPABASE_DB_URL -f migrations/002_create_user_table.sql
+psql $SUPABASE_DB_URL -f migrations/003_create_rooms_assets_table.sql
+psql $SUPABASE_DB_URL -f migrations/004_create_master_table.sql
 ```
+
+**Notes:**
+- Replace `PROJECT_REF` and `PASSWORD` with your Supabase credentials
+- Use the **Direct connection** (port 5432) for running migrations
+- The `kosan` schema will be created automatically by the first migration
+- Migrations should be applied in numerical order
 
 ##### Step 4: Deploy API to Render
 
-Reference the "Deploying to Render (API Only)" section above. Use the following environment variables:
+Reference the "Deploying to Render (API Only)" section below. Use the following environment variables for your `AssetManagement` Supabase project:
 
 ```env
-ConnectionStrings__AssetManagementConnection=postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require&application_name=AssetAPI
+ConnectionStrings__AssetManagementConnection=postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?sslmode=require&application_name=AssetAPI&search_path=kosan,public
 Database__SchemaName=kosan
 Jwt__Secret=your-secure-jwt-secret-32-chars-minimum
 Jwt__Issuer=AssetManagementAPI
@@ -228,22 +244,30 @@ Email__Password=your-app-password
 Cors__AllowedOrigins=https://your-frontend.com,https://www.your-frontend.com
 ```
 
-Set these in your Render Web Service environment variables (see Deploying to Render section).
+Replace:
+- `PROJECT_REF` with your Supabase project reference (from Settings → General)
+- `PASSWORD` with your database password (from Settings → Database)
+- `REGION` with your database region (e.g., `ap-southeast-1`)
+
+Set these in your Render Web Service environment variables (see "Deploying to Render (API Only)" section).
 
 #### Connection String Details
 
-**Pooled Connection (Production):**
+**Pooled Connection (Production) - AssetManagement Project:**
 ```
-postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?sslmode=require&application_name=AssetAPI&search_path=kosan,public
 ```
 
 **Features:**
 - Routed through PgBouncer connection pooler
 - 3000+ concurrent connections
 - Transaction pooling mode
+- **Schema**: Searches `kosan` schema first (your application schema), then `public` (system tables)
+- **sslmode=require**: Enforces SSL/TLS encryption
+- **application_name**: Identifies your app in database logs
 - Best for: Production APIs, high-traffic applications
 
-**Direct Connection (Migrations):**
+**Direct Connection (Migrations) - AssetManagement Project:**
 ```
 postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
 ```
@@ -252,7 +276,13 @@ postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432
 - Direct PostgreSQL connection
 - Lower latency
 - Limited concurrent connections (60-500 depending on plan)
-- Best for: Database migrations, admin tasks
+- **Required for**: Initial schema creation and migrations
+- Best for: Database migrations, admin tasks, schema changes
+
+**Schema Configuration:**
+- **kosan**: Application data schema (users, rooms, assets, etc.)
+- **public**: PostgreSQL system schema
+- Data API is configured to use `kosan` schema exclusively
 
 #### Connection String Parameters
 
@@ -264,7 +294,7 @@ postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432
   • Identify app in database logs
 
 &search_path=kosan,public
-  • Set default schema search path
+  • Set default schema search path (kosan first, then public)
 
 &connect_timeout=10
   • Connection timeout (seconds)
@@ -272,6 +302,30 @@ postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432
 &statement_timeout=30000
   • Query timeout (milliseconds)
 ```
+
+#### Data API Configuration
+
+The Supabase Data API is configured with the following settings for the `AssetManagement` project:
+
+**Data API Settings:**
+- **Enabled**: Yes
+- **Dedicated API Schema**: Enabled
+- **Schema**: `kosan`
+- **Auto API**: Generates REST endpoints for all tables in the kosan schema
+
+**Available Endpoints via Data API:**
+- `POST /rest/v1/user_login` - User authentication
+- `POST /rest/v1/rooms` - Room management
+- `POST /rest/v1/assets` - Asset tracking
+- `GET /rest/v1/asset_categories` - Asset categories
+- And more... (Auto-generated for all kosan schema tables)
+
+**Access Data API:**
+1. Dashboard → Project: AssetManagement → API
+2. Your Data API URL: `https://PROJECT_REF.supabase.co/rest/v1/`
+3. Authenticate using your Supabase API key (JWT)
+
+**Note:** The primary API uses the direct PostgreSQL connection (code-first), while the Data API provides a REST interface directly to the kosan schema.
 
 #### Cost Comparison
 
@@ -312,19 +366,27 @@ services.AddDbContext<AssetManagementDbContext>(options =>
 
 #### Monitoring
 
+**Project: AssetManagement**
+
 ```
-Dashboard → Database → Database Health
+Dashboard → Project: AssetManagement → Database → Database Health
 
 Monitor:
 • CPU usage
 • Memory usage
-• Connection count
+• Connection count (pooled vs direct)
 • Query performance
 ```
 
 Check active connections:
 ```sql
-SELECT count(*) FROM pg_stat_activity;
+SELECT count(*) FROM pg_stat_activity WHERE usename = 'postgres';
+```
+
+Check connections per schema:
+```sql
+SELECT schemaname, count(*) FROM pg_stat_user_tables
+WHERE schemaname = 'kosan' GROUP BY schemaname;
 ```
 
 #### Common Issues
@@ -360,15 +422,19 @@ psql $SUPABASE_DB_URL < backup_20231115.sql
 
 #### Security Best Practices
 
-1. **Never commit connection strings** - Use environment variables
-2. **Use separate databases** for dev/staging/production
-3. **Rotate passwords regularly**
+1. **Never commit connection strings** - Use environment variables (GitHub Secrets for CI/CD)
+2. **Use separate Supabase projects** for dev/staging/production
+3. **Rotate database passwords regularly** for AssetManagement project
    ```
-   Dashboard → Settings → Database → Reset Database Password
+   Dashboard → Project: AssetManagement → Settings → Database → Reset Database Password
    ```
-4. **Enable SSL** (enforce in connection string)
-5. **Implement Row-Level Security** (RLS)
-6. **Backup regularly** (Pro plan or manual)
+4. **Enable SSL/TLS** in connection strings (`sslmode=require`)
+5. **Protect the kosan schema** - Limit direct SQL access to authorized users only
+6. **Implement Row-Level Security (RLS)** for multi-tenant access control
+7. **Backup regularly** (Pro plan includes automatic backups)
+8. **Monitor Data API access** - Dashboard → Project: AssetManagement → Logs
+9. **Use strong JWT secrets** (minimum 32 characters)
+10. **Validate and sanitize** all user inputs before inserting into kosan schema
 
 #### Resources
 
