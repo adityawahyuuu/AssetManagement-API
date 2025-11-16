@@ -28,17 +28,9 @@ namespace API.Repositories.Asset
         {
             try
             {
-                // Verify user exists
-                var userExists = await _dbContext.user_logins
-                    .AnyAsync(u => u.userid == userId);
-
-                if (!userExists)
-                {
-                    return Result.Failure<AssetResponseDto>("User not found");
-                }
-
-                // Verify room exists and belongs to the user
+                // Verify room exists and belongs to the user (also validates user via FK)
                 var room = await _dbContext.Rooms
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(r => r.Id == addAssetDto.RoomId && r.UserId == userId);
 
                 if (room == null)
@@ -74,8 +66,35 @@ namespace API.Repositories.Asset
                     UpdatedAt = DateTime.Now
                 };
 
-                _dbContext.Assets.Add(asset);
-                await _dbContext.SaveChangesAsync();
+                // Check if we're using in-memory database (transactions not supported)
+                var isInMemory = _dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+                if (isInMemory)
+                {
+                    // In-memory database: no transaction support
+                    _dbContext.Assets.Add(asset);
+                    await _dbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    // Real database: use transaction with execution strategy for retry support
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            _dbContext.Assets.Add(asset);
+                            await _dbContext.SaveChangesAsync();
+                            await transaction.CommitAsync();
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
+                }
 
                 var assetResponse = _mapper.Map<AssetResponseDto>(asset);
                 return Result.Success(assetResponse);
@@ -123,6 +142,7 @@ namespace API.Repositories.Asset
             {
                 // Verify room exists and belongs to the user
                 var roomExists = await _dbContext.Rooms
+                    .AsNoTracking()
                     .AnyAsync(r => r.Id == roomId && r.UserId == userId);
 
                 if (!roomExists)
@@ -131,6 +151,7 @@ namespace API.Repositories.Asset
                 }
 
                 var assets = await _dbContext.Assets
+                    .AsNoTracking()
                     .Where(a => a.RoomId == roomId && a.UserId == userId)
                     .OrderByDescending(a => a.CreatedAt)
                     .ToListAsync();
@@ -150,6 +171,7 @@ namespace API.Repositories.Asset
             try
             {
                 var asset = await _dbContext.Assets
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(a => a.Id == assetId && a.UserId == userId);
 
                 if (asset == null)
@@ -172,6 +194,7 @@ namespace API.Repositories.Asset
             try
             {
                 var asset = await _dbContext.Assets
+                    .AsTracking()
                     .FirstOrDefaultAsync(a => a.Id == assetId && a.UserId == userId);
 
                 if (asset == null)
@@ -237,9 +260,35 @@ namespace API.Repositories.Asset
                 if (updateAssetDto.Notes != null)
                     asset.Notes = updateAssetDto.Notes;
 
-                asset.UpdatedAt = DateTime.UtcNow;
+                asset.UpdatedAt = DateTime.Now;
 
-                await _dbContext.SaveChangesAsync();
+                // Check if we're using in-memory database (transactions not supported)
+                var isInMemory = _dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+                if (isInMemory)
+                {
+                    // In-memory database: no transaction support
+                    await _dbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    // Real database: use transaction with execution strategy for retry support
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            await _dbContext.SaveChangesAsync();
+                            await transaction.CommitAsync();
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
+                }
 
                 var assetResponse = _mapper.Map<AssetResponseDto>(asset);
                 return Result.Success(assetResponse);
@@ -286,6 +335,7 @@ namespace API.Repositories.Asset
             try
             {
                 var asset = await _dbContext.Assets
+                    .AsTracking()
                     .FirstOrDefaultAsync(a => a.Id == assetId && a.UserId == userId);
 
                 if (asset == null)
@@ -293,8 +343,35 @@ namespace API.Repositories.Asset
                     return Result.Failure("Asset not found");
                 }
 
-                _dbContext.Assets.Remove(asset);
-                await _dbContext.SaveChangesAsync();
+                // Check if we're using in-memory database (transactions not supported)
+                var isInMemory = _dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+                if (isInMemory)
+                {
+                    // In-memory database: no transaction support
+                    _dbContext.Assets.Remove(asset);
+                    await _dbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    // Real database: use transaction with execution strategy for retry support
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            _dbContext.Assets.Remove(asset);
+                            await _dbContext.SaveChangesAsync();
+                            await transaction.CommitAsync();
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
+                }
 
                 return Result.Success();
             }
@@ -334,6 +411,7 @@ namespace API.Repositories.Asset
 
                 // Get total count
                 var totalCount = await _dbContext.Assets
+                    .AsNoTracking()
                     .Where(a => a.UserId == userId)
                     .CountAsync();
 
@@ -343,6 +421,7 @@ namespace API.Repositories.Asset
 
                 // Get paginated data
                 var assets = await _dbContext.Assets
+                    .AsNoTracking()
                     .Where(a => a.UserId == userId)
                     .OrderByDescending(a => a.CreatedAt)
                     .Skip(skip)

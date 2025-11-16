@@ -69,7 +69,8 @@ public partial class ApplicationDbContext : DbContext
             entity.Property(e => e.password_hash).HasMaxLength(255);
             entity.Property(e => e.updated_at)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
+                .HasColumnType("timestamp without time zone")
+                .IsConcurrencyToken();
             entity.Property(e => e.username).HasMaxLength(255);
         });
 
@@ -172,7 +173,8 @@ public partial class ApplicationDbContext : DbContext
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
+                .HasColumnType("timestamp without time zone")
+                .IsConcurrencyToken();
 
             // Foreign key relationship to user_login
             entity.HasOne(e => e.User)
@@ -205,7 +207,8 @@ public partial class ApplicationDbContext : DbContext
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
+                .HasColumnType("timestamp without time zone")
+                .IsConcurrencyToken();
 
             // Foreign key relationship to rooms
             entity.HasOne(e => e.Room)

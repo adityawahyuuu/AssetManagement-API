@@ -14,6 +14,7 @@ public partial class user_login
 
     public DateTime? created_at { get; set; }
 
+    [System.ComponentModel.DataAnnotations.ConcurrencyCheck]
     public DateTime? updated_at { get; set; }
 
     public BitArray? is_confirmed { get; set; }

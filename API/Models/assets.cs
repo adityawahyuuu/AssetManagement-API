@@ -84,10 +84,11 @@ namespace API.Models
         public string? Notes { get; set; }
 
         [Column("created_at")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         [Column("updated_at")]
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        [ConcurrencyCheck]
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
         // Navigation properties
         [ForeignKey("RoomId")]

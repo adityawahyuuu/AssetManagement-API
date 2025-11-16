@@ -31,6 +31,7 @@ namespace API.Repositories.Room
             {
                 // Verify user exists
                 var userExists = await _dbContext.user_logins
+                    .AsNoTracking()
                     .AnyAsync(u => u.userid == userId);
 
                 if (!userExists)
@@ -56,8 +57,35 @@ namespace API.Repositories.Room
                     UpdatedAt = DateTime.Now
                 };
 
-                _dbContext.Rooms.Add(room);
-                await _dbContext.SaveChangesAsync();
+                // Check if we're using in-memory database (transactions not supported)
+                var isInMemory = _dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+                if (isInMemory)
+                {
+                    // In-memory database: no transaction support
+                    _dbContext.Rooms.Add(room);
+                    await _dbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    // Real database: use transaction with execution strategy for retry support
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            _dbContext.Rooms.Add(room);
+                            await _dbContext.SaveChangesAsync();
+                            await transaction.CommitAsync();
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
+                }
 
                 var roomResponse = _mapper.Map<RoomResponseDto>(room);
                 return Result.Success(roomResponse);
@@ -92,6 +120,7 @@ namespace API.Repositories.Room
             try
             {
                 var rooms = await _dbContext.Rooms
+                    .AsNoTracking()
                     .Where(r => r.UserId == userId)
                     .OrderByDescending(r => r.CreatedAt)
                     .ToListAsync();
@@ -111,6 +140,7 @@ namespace API.Repositories.Room
             try
             {
                 var room = await _dbContext.Rooms
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(r => r.Id == roomId && r.UserId == userId);
 
                 if (room == null)
@@ -133,6 +163,7 @@ namespace API.Repositories.Room
             try
             {
                 var room = await _dbContext.Rooms
+                    .AsTracking()
                     .FirstOrDefaultAsync(r => r.Id == roomId && r.UserId == userId);
 
                 if (room == null)
@@ -171,9 +202,35 @@ namespace API.Repositories.Room
                 if (updateRoomDto.Notes != null)
                     room.Notes = updateRoomDto.Notes;
 
-                room.UpdatedAt = DateTime.UtcNow;
+                room.UpdatedAt = DateTime.Now;
 
-                await _dbContext.SaveChangesAsync();
+                // Check if we're using in-memory database (transactions not supported)
+                var isInMemory = _dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+                if (isInMemory)
+                {
+                    // In-memory database: no transaction support
+                    await _dbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    // Real database: use transaction with execution strategy for retry support
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            await _dbContext.SaveChangesAsync();
+                            await transaction.CommitAsync();
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
+                }
 
                 var roomResponse = _mapper.Map<RoomResponseDto>(room);
                 return Result.Success(roomResponse);
@@ -208,6 +265,7 @@ namespace API.Repositories.Room
             try
             {
                 var room = await _dbContext.Rooms
+                    .AsTracking()
                     .FirstOrDefaultAsync(r => r.Id == roomId && r.UserId == userId);
 
                 if (room == null)
@@ -215,9 +273,37 @@ namespace API.Repositories.Room
                     return Result.Failure("Room not found");
                 }
 
-                // Assets will be deleted automatically due to CASCADE delete
-                _dbContext.Rooms.Remove(room);
-                await _dbContext.SaveChangesAsync();
+                // Check if we're using in-memory database (transactions not supported)
+                var isInMemory = _dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+                if (isInMemory)
+                {
+                    // In-memory database: no transaction support
+                    // Assets will be deleted automatically due to CASCADE delete
+                    _dbContext.Rooms.Remove(room);
+                    await _dbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    // Real database: use transaction with execution strategy for retry support
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            // Assets will be deleted automatically due to CASCADE delete
+                            _dbContext.Rooms.Remove(room);
+                            await _dbContext.SaveChangesAsync();
+                            await transaction.CommitAsync();
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
+                }
 
                 return Result.Success();
             }

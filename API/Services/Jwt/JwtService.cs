@@ -41,7 +41,7 @@ namespace API.Services.Jwt
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddMinutes(_jwtOptions.ExpirationMinutes),
+                Expires = DateTime.Now.AddMinutes(_jwtOptions.ExpirationMinutes),
                 Issuer = _jwtOptions.Issuer,
                 Audience = _jwtOptions.Audience,
                 SigningCredentials = new SigningCredentials(

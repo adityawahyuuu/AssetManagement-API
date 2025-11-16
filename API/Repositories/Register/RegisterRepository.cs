@@ -69,6 +69,7 @@ namespace API.Repositories.Register
 
             // Check if email already exists in user_logins
             var existingUser = await _dbContext.user_logins
+                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.email == userRegister.Email);
 
             if (existingUser != null)
@@ -78,42 +79,99 @@ namespace API.Repositories.Register
 
             // Check if email already exists in pending_users
             var existingPendingUser = await _dbContext.pending_users
+                .AsTracking()
                 .FirstOrDefaultAsync(u => u.email == userRegister.Email);
-
-            if (existingPendingUser != null)
-            {
-                // Delete existing pending user and try again
-                _dbContext.pending_users.Remove(existingPendingUser);
-                await _dbContext.SaveChangesAsync();
-            }
 
             try
             {
-                // Create pending user
-                var pendingUser = new pending_users
-                {
-                    email = userRegister.Email,
-                    username = userRegister.Username,
-                    password_hash = _passwordHasher.HashPassword(userRegister.Password),
-                    created_at = DateTime.Now,
-                    expires_at = DateTime.Now.AddMinutes(_otpOptions.PendingUserExpirationMinutes)
-                };
+                // Check if we're using in-memory database (transactions not supported)
+                var isInMemory = _dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
 
-                await _dbContext.pending_users.AddAsync(pendingUser);
-                await _dbContext.SaveChangesAsync();
+                string otpCode;
 
-                // Generate OTP
-                var otpResult = await _otpService.GenerateAndSaveOtpAsync(userRegister.Email);
-                if (otpResult.IsFailure)
+                if (isInMemory)
                 {
-                    return Result.Failure<RegistrationResponseDto>(otpResult.Error);
+                    // In-memory database: no transaction support
+                    if (existingPendingUser != null)
+                    {
+                        // Delete existing pending user and try again
+                        _dbContext.pending_users.Remove(existingPendingUser);
+                        await _dbContext.SaveChangesAsync();
+                    }
+
+                    // Create pending user
+                    var pendingUser = new pending_users
+                    {
+                        email = userRegister.Email,
+                        username = userRegister.Username,
+                        password_hash = _passwordHasher.HashPassword(userRegister.Password),
+                        created_at = DateTime.Now,
+                        expires_at = DateTime.Now.AddMinutes(_otpOptions.PendingUserExpirationMinutes)
+                    };
+
+                    await _dbContext.pending_users.AddAsync(pendingUser);
+                    await _dbContext.SaveChangesAsync();
+
+                    // Generate OTP
+                    var otpResult = await _otpService.GenerateAndSaveOtpAsync(userRegister.Email);
+                    if (otpResult.IsFailure)
+                    {
+                        return Result.Failure<RegistrationResponseDto>(otpResult.Error);
+                    }
+                    otpCode = otpResult.Value;
+                }
+                else
+                {
+                    // Real database: use transaction with execution strategy for retry support
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    otpCode = await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            if (existingPendingUser != null)
+                            {
+                                // Delete existing pending user and try again
+                                _dbContext.pending_users.Remove(existingPendingUser);
+                                await _dbContext.SaveChangesAsync();
+                            }
+
+                            // Create pending user
+                            var pendingUser = new pending_users
+                            {
+                                email = userRegister.Email,
+                                username = userRegister.Username,
+                                password_hash = _passwordHasher.HashPassword(userRegister.Password),
+                                created_at = DateTime.Now,
+                                expires_at = DateTime.Now.AddMinutes(_otpOptions.PendingUserExpirationMinutes)
+                            };
+
+                            await _dbContext.pending_users.AddAsync(pendingUser);
+                            await _dbContext.SaveChangesAsync();
+
+                            // Generate OTP
+                            var otpResult = await _otpService.GenerateAndSaveOtpAsync(userRegister.Email);
+                            if (otpResult.IsFailure)
+                            {
+                                throw new InvalidOperationException(otpResult.Error);
+                            }
+
+                            await transaction.CommitAsync();
+                            return otpResult.Value;
+                        }
+                        catch (Exception ex)
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
                 }
 
                 // Send OTP email
-                var verificationUrl = $"{baseUrl}/user/verify?email={userRegister.Email}&otp={otpResult.Value}";
+                var verificationUrl = $"{baseUrl}/user/verify?email={userRegister.Email}&otp={otpCode}";
                 var emailSent = await _emailService.SendOtpEmailAsync(
                     userRegister.Email,
-                    otpResult.Value,
+                    otpCode,
                     verificationUrl);
 
                 if (!emailSent)
@@ -144,6 +202,7 @@ namespace API.Repositories.Register
             {
                 // Get pending user
                 var pendingUser = await _dbContext.pending_users
+                    .AsTracking()
                     .FirstOrDefaultAsync(p => p.email == email);
 
                 if (pendingUser == null)
@@ -159,23 +218,61 @@ namespace API.Repositories.Register
                     return Result.Failure(OtpMessages.RegistrationExpired);
                 }
 
-                // Create actual user account
-                var newUser = new user_login
+                // Check if we're using in-memory database (transactions not supported)
+                var isInMemory = _dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+                if (isInMemory)
                 {
-                    email = pendingUser.email,
-                    username = pendingUser.username,
-                    password_hash = pendingUser.password_hash,
-                    created_at = DateTime.Now,
-                    updated_at = DateTime.Now,
-                    is_confirmed = new BitArray(1, true)
-                };
+                    // In-memory database: no transaction support
+                    var newUser = new user_login
+                    {
+                        email = pendingUser.email,
+                        username = pendingUser.username,
+                        password_hash = pendingUser.password_hash,
+                        created_at = DateTime.Now,
+                        updated_at = DateTime.Now,
+                        is_confirmed = new BitArray(1, true)
+                    };
 
-                await _dbContext.user_logins.AddAsync(newUser);
+                    await _dbContext.user_logins.AddAsync(newUser);
+                    _dbContext.pending_users.Remove(pendingUser);
+                    await _dbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    // Real database: use transaction with execution strategy for retry support
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            // Create actual user account
+                            var newUser = new user_login
+                            {
+                                email = pendingUser.email,
+                                username = pendingUser.username,
+                                password_hash = pendingUser.password_hash,
+                                created_at = DateTime.Now,
+                                updated_at = DateTime.Now,
+                                is_confirmed = new BitArray(1, true)
+                            };
 
-                // Remove pending user (OTP records will be CASCADE deleted)
-                _dbContext.pending_users.Remove(pendingUser);
+                            await _dbContext.user_logins.AddAsync(newUser);
 
-                await _dbContext.SaveChangesAsync();
+                            // Remove pending user (OTP records will be CASCADE deleted)
+                            _dbContext.pending_users.Remove(pendingUser);
+
+                            await _dbContext.SaveChangesAsync();
+                            await transaction.CommitAsync();
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
+                }
 
                 _logger.LogInformation("User activated successfully: {Email}", email);
                 return Result.Success();
@@ -193,6 +290,7 @@ namespace API.Repositories.Register
             {
                 // Find user by email
                 var user = await _dbContext.user_logins
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.email == loginDto.Email);
 
                 if (user == null)
@@ -244,6 +342,7 @@ namespace API.Repositories.Register
             {
                 // Find user by ID
                 var user = await _dbContext.user_logins
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.userid == userId);
 
                 if (user == null)
@@ -321,33 +420,88 @@ namespace API.Repositories.Register
                     return Result.Failure(errors);
                 }
 
-                // Verify reset token
-                var tokenVerifyResult = await _passwordResetService.VerifyResetTokenAsync(
-                    resetPasswordDto.Email,
-                    resetPasswordDto.OtpCode); // Using OtpCode field for token (backwards compatibility)
+                // Check if we're using in-memory database (transactions not supported)
+                var isInMemory = _dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
 
-                if (tokenVerifyResult.IsFailure)
+                if (isInMemory)
                 {
-                    return Result.Failure(tokenVerifyResult.Error);
+                    // In-memory database: no transaction support
+                    // Verify reset token (marks as used in database)
+                    var tokenVerifyResult = await _passwordResetService.VerifyResetTokenAsync(
+                        resetPasswordDto.Email,
+                        resetPasswordDto.OtpCode); // Using OtpCode field for token (backwards compatibility)
+
+                    if (tokenVerifyResult.IsFailure)
+                    {
+                        return Result.Failure(tokenVerifyResult.Error);
+                    }
+
+                    // Get user and update password
+                    var user = await _dbContext.user_logins
+                        .AsTracking()
+                        .FirstOrDefaultAsync(u => u.email == resetPasswordDto.Email);
+
+                    if (user == null)
+                    {
+                        return Result.Failure(ResponseMessages.UserNotFound);
+                    }
+
+                    // Update password
+                    user.password_hash = _passwordHasher.HashPassword(resetPasswordDto.Password);
+                    user.updated_at = DateTime.Now;
+
+                    await _dbContext.SaveChangesAsync();
+
+                    // Clean up password reset tokens
+                    await _passwordResetService.CleanupExpiredTokensAsync(resetPasswordDto.Email);
                 }
-
-                // Get user
-                var user = await _dbContext.user_logins
-                    .FirstOrDefaultAsync(u => u.email == resetPasswordDto.Email);
-
-                if (user == null)
+                else
                 {
-                    return Result.Failure(ResponseMessages.UserNotFound);
+                    // Real database: use transaction with execution strategy for retry support
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            // Verify reset token (marks as used in database)
+                            var tokenVerifyResult = await _passwordResetService.VerifyResetTokenAsync(
+                                resetPasswordDto.Email,
+                                resetPasswordDto.OtpCode); // Using OtpCode field for token (backwards compatibility)
+
+                            if (tokenVerifyResult.IsFailure)
+                            {
+                                throw new InvalidOperationException(tokenVerifyResult.Error);
+                            }
+
+                            // Get user and update password
+                            var user = await _dbContext.user_logins
+                                .AsTracking()
+                                .FirstOrDefaultAsync(u => u.email == resetPasswordDto.Email);
+
+                            if (user == null)
+                            {
+                                throw new InvalidOperationException(ResponseMessages.UserNotFound);
+                            }
+
+                            // Update password
+                            user.password_hash = _passwordHasher.HashPassword(resetPasswordDto.Password);
+                            user.updated_at = DateTime.Now;
+
+                            await _dbContext.SaveChangesAsync();
+
+                            // Clean up password reset tokens
+                            await _passwordResetService.CleanupExpiredTokensAsync(resetPasswordDto.Email);
+
+                            await transaction.CommitAsync();
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
                 }
-
-                // Update password
-                user.password_hash = _passwordHasher.HashPassword(resetPasswordDto.Password);
-                user.updated_at = DateTime.Now;
-
-                await _dbContext.SaveChangesAsync();
-
-                // Clean up password reset tokens
-                await _passwordResetService.CleanupExpiredTokensAsync(resetPasswordDto.Email);
 
                 _logger.LogInformation("Password reset successfully for: {Email}", resetPasswordDto.Email);
                 return Result.Success();

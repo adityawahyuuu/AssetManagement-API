@@ -74,9 +74,21 @@ namespace API
             // Add services to the container
             builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly, includeInternalTypes: true);
 
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
             {
-                options.UseNpgsql(builder.Configuration.GetConnectionString("AssetManagementConnection"));
+                options.UseNpgsql(
+                    builder.Configuration.GetConnectionString("AssetManagementConnection"),
+                    npgsqlOptions =>
+                    {
+                        npgsqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 3,
+                            maxRetryDelay: TimeSpan.FromSeconds(10),
+                            errorCodesToAdd: null);
+                        npgsqlOptions.CommandTimeout(60); // Increased to 60 seconds for slow queries
+                    });
+                options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+                options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+                options.EnableDetailedErrors(builder.Environment.IsDevelopment());
             });
 
             builder.Services.AddScoped<IRegisterRepository, RegisterRepository>();

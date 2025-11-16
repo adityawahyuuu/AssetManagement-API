@@ -29,6 +29,7 @@ namespace API.Repositories.AssetCategory
                 _logger.LogInformation("Fetching all asset categories");
 
                 var categories = await _context.AssetCategories
+                    .AsNoTracking()
                     .OrderBy(c => c.Name)
                     .ToListAsync();
 
